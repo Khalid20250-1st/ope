@@ -150,7 +150,7 @@
   function openRoot(path, already){
     var step = already ? Promise.resolve({root: path}) : OPEBridge.call('open', {path: path});
     return step.then(function(r){
-      if(r.root !== S.root) S.libSel = null;
+      if(r.root !== S.root){ S.libSel = null; S.libMajor = null; }
       S.root = r.root; S.project = null; S.version = null; S.open = {}; S.path = ''; S.changed = {}; S.dirs = {}; S.gone = [];
       if(S.recent.indexOf(r.root) < 0) S.recent.unshift(r.root);
       if(r.library) S.library = r.library;
@@ -166,6 +166,7 @@
     return OPEGit.loadVersions().then(function(d){
       S.repo = d.repo; S.numbered = d.numbered; S.projects = d.projects;
       if(S.libSel && applyLibSel()){ /* the numbered selection is rebuilt from the library */ }
+      else if(S.libMajor && applyLibMajor()){ S.version = null; }
       else if(S.project) S.project = S.projects.filter(function(p){ return p.id === S.project.id; })[0] || null;
       if(S.version && S.project && !S.version.lib){
         var keep = S.version.name;
@@ -218,12 +219,36 @@
     return all.filter(function(x){ return x.number === major; })[0] || null;
   }
   function libVersion(e){ return {name: e.number, summary: e.name, commits: e.commits || null, note: e.note || '', lib: true}; }
+  function libGroup(top, all){
+    var kids = all.filter(function(x){ return libParent(x, all) === top; });
+    var versions = (kids.length ? kids : [top]).map(libVersion);
+    return {id: 'lib:' + top.number, title: top.number + ' ' + top.name, versions: versions};
+  }
+  function applyLibMajor(){
+    var all = libNumbered(), top = all.filter(function(x){ return x.number === S.libMajor; })[0];
+    if(!top) return null;
+    S.project = libGroup(top, all);
+    return top;
+  }
+  function selectMajor(top){
+    var go = top.path === S.root ? Promise.resolve() : openRoot(top.path);
+    return Promise.resolve(go).then(function(){
+      S.libMajor = top.number; S.libSel = null; S.version = null;
+      applyLibMajor(); clearMarks();
+      if($('versions').classList.contains('shut')) fold('versions', false);
+      renderProjects(); renderVersions();
+      status('Pick a version of ' + top.number + ' in the next column', '');
+    });
+  }
   function applyLibSel(){
     var all = libNumbered(), e = all.filter(function(x){ return x.number === S.libSel; })[0];
     if(!e) return null;
     var parent = libParent(e, all), kids = all.filter(function(x){ return parent && libParent(x, all) === parent; });
     var versions = (parent ? kids : [e]).map(libVersion);
-    S.project = {id: 'lib:' + (parent ? parent.number : e.number), title: parent ? parent.number + ' ' + parent.name : e.number + ' ' + e.name, versions: versions};
+    var top = parent || e;
+    S.libMajor = top.number;
+    S.project = libGroup(top, all);
+    versions = S.project.versions;
     S.version = versions.filter(function(v){ return v.name === e.number; })[0];
     return e;
   }
@@ -234,7 +259,7 @@
       applyLibSel();
       if($('versions').classList.contains('shut')) fold('versions', false);
       renderProjects(); renderVersions();
-      if(S.version.commits && S.repo) return markVersion(S.version);
+      if(S.version && S.version.commits && S.repo){ status('Project ' + e.number + ', ' + e.name); return markVersion(S.version); }
       clearMarks();
       status(e.note || (S.repo ? 'No commits are matched to ' + e.number + ' yet.' : 'This folder is not saved with git.'), e.number + ' ' + e.name);
     });
@@ -248,17 +273,9 @@
     S.libOpen = S.libOpen || {};
     var html = [];
     all.filter(function(e){ return !libParent(e, all); }).forEach(function(top){
-      var kids = all.filter(function(x){ return libParent(x, all) === top; });
-      var open = !!S.libOpen[top.number], on = S.libSel === top.number || (kids.some(function(k){ return k.number === S.libSel; }));
       html.push('<div class="lib'+(top.path === S.root ? ' on' : '')+'">'+
-        '<button class="row libname'+(S.libSel === top.number ? ' sel' : '')+'" data-num="'+esc(top.number)+'" type="button" title="'+esc(top.path)+'">'+
-          '<span class="caret">'+(kids.length ? (open ? '▾' : '▸') : '')+'</span><span class="num">'+esc(top.number)+'</span>'+
-          '<span class="name">'+esc(top.name)+'</span></button>');
-      if(open) kids.forEach(function(k){
-        html.push('<button class="row sub'+(S.libSel === k.number ? ' sel' : '')+(k.commits ? '' : ' faint')+'" data-num="'+esc(k.number)+'" type="button">'+
-          '<span class="num">'+esc(k.number)+'</span><span class="name">'+esc(k.name)+'</span></button>');
-      });
-      html.push('</div>');
+        '<button class="row libname'+(S.libMajor === top.number ? ' sel' : '')+'" data-num="'+esc(top.number)+'" type="button" title="'+esc(top.path)+'">'+
+          '<span class="num">'+esc(top.number)+'</span><span class="name">'+esc(top.name)+'</span></button></div>');
     });
     if(plain.length){
       if(all.length) html.push('<div class="group">OTHER FOLDERS</div>');
@@ -276,15 +293,8 @@
 
     Array.prototype.forEach.call(box.querySelectorAll('[data-num]'), function(b){
       b.onclick = function(){
-        var n = b.getAttribute('data-num'), e = all.filter(function(x){ return x.number === n; })[0];
-        var kids = all.filter(function(x){ return libParent(x, all) === e; });
-        if(!libParent(e, all) && kids.length){
-          S.libOpen[n] = !S.libOpen[n];
-          if(e.path !== S.root){ S.libSel = null; openRoot(e.path).then(renderProjects); }
-          else renderProjects();
-          return;
-        }
-        selectNumbered(e);
+        var n = b.getAttribute('data-num'), top = all.filter(function(x){ return x.number === n; })[0];
+        if(top) selectMajor(top);
       };
     });
     Array.prototype.forEach.call(box.querySelectorAll('[data-plain]'), function(b){
@@ -294,7 +304,7 @@
           OPEBridge.call('libraryRemove', {path: path}).then(function(r){ S.library = r.items || []; renderProjects(); });
           return;
         }
-        S.libSel = null;
+        S.libSel = null; S.libMajor = null;
         if(path === S.root){ S.innerShut = !S.innerShut; renderProjects(); return; }
         S.innerShut = false;
         openRoot(path);
@@ -311,7 +321,7 @@
     Array.prototype.forEach.call(box.querySelectorAll('[data-p]'), function(b){
       b.onclick = function(){
         var p = S.projects[+b.getAttribute('data-p')];
-        S.libSel = null;
+        S.libSel = null; S.libMajor = null;
         S.project = (S.project && S.project.id === p.id) ? null : p;
         if(S.project && $('versions').classList.contains('shut')) fold('versions', false);
         if(!S.project){ S.version = null; clearMarks(); }
@@ -411,7 +421,15 @@
     })(buildTree(), '', 0);
     box.innerHTML = html.join('') || '<div class="empty">This folder is empty.</div>';
     Array.prototype.forEach.call(box.querySelectorAll('[data-dir]'), function(b){
-      b.onclick = function(){ var p = b.getAttribute('data-dir'); S.open[p] = !S.open[p]; renderTree(); };
+      b.onclick = function(){
+        var p = b.getAttribute('data-dir'); S.open[p] = !S.open[p]; renderTree();
+        if(!S.open[p] || !S.dirs[p]) return;
+        /* the files a version touched can sit below a long run of subfolders */
+        var first = Array.prototype.filter.call($('tree').querySelectorAll('[data-file].green'), function(f){
+          return f.getAttribute('data-file').indexOf(p + '/') === 0 && f.getAttribute('data-file').slice(p.length + 1).indexOf('/') < 0;
+        })[0];
+        if(first) first.scrollIntoView({block: 'center'});
+      };
     });
     Array.prototype.forEach.call(box.querySelectorAll('[data-file]'), function(b){
       b.onclick = function(){ openFile(b.getAttribute('data-file')); };
