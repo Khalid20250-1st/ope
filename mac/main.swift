@@ -41,8 +41,8 @@ final class Project {
   }
 
   /* the library of project folders, kept in this Mac's own settings, never in the app */
-  var library: [[String: String]] {
-    get { (UserDefaults.standard.array(forKey: "library") as? [[String: String]]) ?? [] }
+  var library: [[String: Any]] {
+    get { (UserDefaults.standard.array(forKey: "library") as? [[String: Any]]) ?? [] }
     set { UserDefaults.standard.set(newValue, forKey: "library") }
   }
 
@@ -59,7 +59,7 @@ final class Project {
     r.insert(url.path, at: 0)
     recent = r
     UserDefaults.standard.set(url.path, forKey: "last")
-    if !library.contains(where: { $0["path"] == url.path }) {
+    if !library.contains(where: { ($0["path"] as? String) == url.path }) {
       library = library + [["path": url.path, "name": url.lastPathComponent]]
     }
     watch()
@@ -259,7 +259,7 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
 
     case "libraryRemove":
       let path = body["path"] as? String ?? ""
-      project.library = project.library.filter { $0["path"] != path }
+      project.library = project.library.filter { ($0["path"] as? String) != path }
       reply(["items": project.library])
 
     case "copy":

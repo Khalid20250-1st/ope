@@ -150,6 +150,7 @@
   function openRoot(path, already){
     var step = already ? Promise.resolve({root: path}) : OPEBridge.call('open', {path: path});
     return step.then(function(r){
+      if(r.root !== S.root) S.libSel = null;
       S.root = r.root; S.project = null; S.version = null; S.open = {}; S.path = ''; S.changed = {}; S.dirs = {}; S.gone = [];
       if(S.recent.indexOf(r.root) < 0) S.recent.unshift(r.root);
       if(r.library) S.library = r.library;
@@ -164,8 +165,9 @@
   function reload(){
     return OPEGit.loadVersions().then(function(d){
       S.repo = d.repo; S.numbered = d.numbered; S.projects = d.projects;
-      if(S.project) S.project = S.projects.filter(function(p){ return p.id === S.project.id; })[0] || null;
-      if(S.version && S.project){
+      if(S.libSel && applyLibSel()){ /* the numbered selection is rebuilt from the library */ }
+      else if(S.project) S.project = S.projects.filter(function(p){ return p.id === S.project.id; })[0] || null;
+      if(S.version && S.project && !S.version.lib){
         var keep = S.version.name;
         S.version = S.project.versions.filter(function(v){ return v.name === keep; })[0] || null;
       }
@@ -175,7 +177,7 @@
       renderProjects(); renderVersions();
       return S.version ? markVersion(S.version) : renderTree();
     }).then(function(){
-      status(S.repo ? (S.numbered ? 'Tracking versions with git' : 'Git history, no numbered versions yet') : 'Not tracked by git yet',
+      status(S.libSel ? 'Project ' + S.libSel + ', from your numbered projects' : S.repo ? (S.numbered ? 'Tracking versions with git' : 'Git history, no numbered versions yet') : 'Not tracked by git yet',
              S.version ? versionLine() : '');
     });
   }
@@ -199,32 +201,103 @@
       }).join('');
   }
 
+  /* NUMBERED PROJECTS. A library entry can carry a project number (1.0, 1.8,
+     1.1.4) and the commits that made it. They are listed by number, a number
+     sits under its whole number (1.8 under 1.0), and picking one boxes in green
+     exactly what those commits touched. Entries with no number are plain folders. */
+  function numParts(n){ return String(n).split('.').map(Number); }
+  function numCmp(a, b){
+    var x = numParts(a), y = numParts(b);
+    for(var i = 0; i < Math.max(x.length, y.length); i++){ var d = (x[i] || 0) - (y[i] || 0); if(d) return d; }
+    return 0;
+  }
+  function libNumbered(){ return (S.library || []).filter(function(e){ return e.number; }).sort(function(a, b){ return numCmp(a.number, b.number); }); }
+  function libParent(e, all){
+    var major = numParts(e.number)[0] + '.0';
+    if(e.number === major) return null;
+    return all.filter(function(x){ return x.number === major; })[0] || null;
+  }
+  function libVersion(e){ return {name: e.number, summary: e.name, commits: e.commits || null, note: e.note || '', lib: true}; }
+  function applyLibSel(){
+    var all = libNumbered(), e = all.filter(function(x){ return x.number === S.libSel; })[0];
+    if(!e) return null;
+    var parent = libParent(e, all), kids = all.filter(function(x){ return parent && libParent(x, all) === parent; });
+    var versions = (parent ? kids : [e]).map(libVersion);
+    S.project = {id: 'lib:' + (parent ? parent.number : e.number), title: parent ? parent.number + ' ' + parent.name : e.number + ' ' + e.name, versions: versions};
+    S.version = versions.filter(function(v){ return v.name === e.number; })[0];
+    return e;
+  }
+  function selectNumbered(e){
+    var go = e.path === S.root ? Promise.resolve() : openRoot(e.path);
+    return Promise.resolve(go).then(function(){
+      S.libSel = e.number;
+      applyLibSel();
+      if($('versions').classList.contains('shut')) fold('versions', false);
+      renderProjects(); renderVersions();
+      if(S.version.commits && S.repo) return markVersion(S.version);
+      clearMarks();
+      status(e.note || (S.repo ? 'No commits are matched to ' + e.number + ' yet.' : 'This folder is not saved with git.'), e.number + ' ' + e.name);
+    });
+  }
+
   function renderProjects(){
     var box = $('projectList');
-    var lib = (S.library || []).slice();
-    if(S.root && !lib.some(function(x){ return x.path === S.root; })) lib.unshift({path: S.root, name: base(S.root)});
-    var html = lib.map(function(item, i){
-      var active = item.path === S.root, open = active && !S.innerShut;
-      return '<div class="lib'+(active ? ' on' : '')+'">'+
-        '<button class="row libname" data-lib="'+i+'" type="button" title="'+esc(item.path)+'">'+
-          '<span class="caret">'+(open ? '▾' : '▸')+'</span><span class="name">'+esc(item.name || base(item.path))+'</span>'+
-          '<span class="x" data-unlib="'+i+'" title="Take it off the list" role="button" aria-label="Take it off the list">×</span></button>'+
-        (open ? inner() : '')+'</div>';
-    }).join('');
-    box.innerHTML = (html || '<div class="empty">Add a project folder to begin.</div>')+
+    var all = libNumbered();
+    var plain = (S.library || []).filter(function(e){ return !e.number; });
+    if(S.root && !(S.library || []).some(function(x){ return x.path === S.root; })) plain.unshift({path: S.root, name: base(S.root)});
+    S.libOpen = S.libOpen || {};
+    var html = [];
+    all.filter(function(e){ return !libParent(e, all); }).forEach(function(top){
+      var kids = all.filter(function(x){ return libParent(x, all) === top; });
+      var open = !!S.libOpen[top.number], on = S.libSel === top.number || (kids.some(function(k){ return k.number === S.libSel; }));
+      html.push('<div class="lib'+(top.path === S.root ? ' on' : '')+'">'+
+        '<button class="row libname'+(S.libSel === top.number ? ' sel' : '')+'" data-num="'+esc(top.number)+'" type="button" title="'+esc(top.path)+'">'+
+          '<span class="caret">'+(kids.length ? (open ? '▾' : '▸') : '')+'</span><span class="num">'+esc(top.number)+'</span>'+
+          '<span class="name">'+esc(top.name)+'</span></button>');
+      if(open) kids.forEach(function(k){
+        html.push('<button class="row sub'+(S.libSel === k.number ? ' sel' : '')+(k.commits ? '' : ' faint')+'" data-num="'+esc(k.number)+'" type="button">'+
+          '<span class="num">'+esc(k.number)+'</span><span class="name">'+esc(k.name)+'</span></button>');
+      });
+      html.push('</div>');
+    });
+    if(plain.length){
+      if(all.length) html.push('<div class="group">OTHER FOLDERS</div>');
+      plain.forEach(function(item){
+        var active = item.path === S.root, open = active && !S.innerShut;
+        html.push('<div class="lib'+(active ? ' on' : '')+'">'+
+          '<button class="row libname" data-plain="'+esc(item.path)+'" type="button" title="'+esc(item.path)+'">'+
+            '<span class="caret">'+(open ? '▾' : '▸')+'</span><span class="name">'+esc(item.name || base(item.path))+'</span>'+
+            '<span class="x" data-unlib="'+esc(item.path)+'" title="Take it off the list" role="button" aria-label="Take it off the list">×</span></button>'+
+          (open ? inner() : '')+'</div>');
+      });
+    }
+    box.innerHTML = (html.join('') || '<div class="empty">Add a project folder to begin.</div>')+
       '<button class="row addlib" id="addLib" type="button"><span class="caret">+</span><span class="name">Add a project folder</span></button>';
-    S.libShown = lib;
 
-    Array.prototype.forEach.call(box.querySelectorAll('[data-lib]'), function(b){
-      b.onclick = function(e){
-        var item = S.libShown[+b.getAttribute('data-lib')];
-        if(e.target.hasAttribute('data-unlib')){
-          OPEBridge.call('libraryRemove', {path: item.path}).then(function(r){ S.library = r.items || []; renderProjects(); });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-num]'), function(b){
+      b.onclick = function(){
+        var n = b.getAttribute('data-num'), e = all.filter(function(x){ return x.number === n; })[0];
+        var kids = all.filter(function(x){ return libParent(x, all) === e; });
+        if(!libParent(e, all) && kids.length){
+          S.libOpen[n] = !S.libOpen[n];
+          if(e.path !== S.root){ S.libSel = null; openRoot(e.path).then(renderProjects); }
+          else renderProjects();
           return;
         }
-        if(item.path === S.root){ S.innerShut = !S.innerShut; renderProjects(); return; }
+        selectNumbered(e);
+      };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-plain]'), function(b){
+      b.onclick = function(ev){
+        var path = b.getAttribute('data-plain');
+        if(ev.target.hasAttribute('data-unlib')){
+          OPEBridge.call('libraryRemove', {path: path}).then(function(r){ S.library = r.items || []; renderProjects(); });
+          return;
+        }
+        S.libSel = null;
+        if(path === S.root){ S.innerShut = !S.innerShut; renderProjects(); return; }
         S.innerShut = false;
-        openRoot(item.path);
+        openRoot(path);
       };
     });
     $('addLib').onclick = pickProject;
@@ -238,6 +311,7 @@
     Array.prototype.forEach.call(box.querySelectorAll('[data-p]'), function(b){
       b.onclick = function(){
         var p = S.projects[+b.getAttribute('data-p')];
+        S.libSel = null;
         S.project = (S.project && S.project.id === p.id) ? null : p;
         if(S.project && $('versions').classList.contains('shut')) fold('versions', false);
         if(!S.project){ S.version = null; clearMarks(); }
@@ -252,15 +326,20 @@
     if(!S.project) return;
     $('versionsHead').textContent = S.project.title.toUpperCase();
     var list = S.project.versions;
+    var same = function(a, b){ return a && b && (a.lib ? a.name === b.name : a.commit === b.commit); };
     $('versionList').innerHTML = list.map(function(v, i){
-      var on = S.version && S.version.commit === v.commit;
-      return '<button class="row ver'+(on ? ' sel' : '')+'" data-v="'+i+'" type="button"><b>'+esc(v.name)+'</b>'+
+      return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button"><b>'+esc(v.name)+'</b>'+
         (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+'</button>';
     }).join('');
     Array.prototype.forEach.call($('versionList').querySelectorAll('[data-v]'), function(b){
       b.onclick = function(){
         var v = list[+b.getAttribute('data-v')];
-        if(S.version && S.version.commit === v.commit){ S.version = null; clearMarks(); renderVersions(); return; }
+        if(v.lib){
+          var e = libNumbered().filter(function(x){ return x.number === v.name; })[0];
+          if(e) selectNumbered(e);
+          return;
+        }
+        if(same(S.version, v)){ S.version = null; clearMarks(); renderVersions(); return; }
         S.version = v; renderVersions(); markVersion(v);
       };
     });

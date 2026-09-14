@@ -65,7 +65,32 @@
     });
   }
 
+  /* a numbered project that is not one unbroken stretch of history, just the
+     commits that belong to it, however far apart */
+  function changesOf(list){
+    var files = {};
+    return list.reduce(function(chain, c){
+      return chain.then(function(){
+        return git(['show', '--relative', '--name-status', '--format=', '-M', c]).then(function(r){
+          r.out.split('\n').filter(Boolean).forEach(function(l){
+            var p = l.split('\t'), st = (p[0] || '').charAt(0), path = (st === 'R' || st === 'C') ? p[2] : p[1];
+            if(!path) return;
+            var was = files[path];
+            if(st === 'R' || st === 'C') st = 'M';
+            if(st === 'D') files[path] = (was === 'A') ? null : 'D';
+            else if(was === 'A' && st === 'M') files[path] = 'A';
+            else if(was === 'D' && st === 'A') files[path] = 'M';
+            else files[path] = st;
+          });
+        });
+      });
+    }, Promise.resolve()).then(function(){
+      return Object.keys(files).filter(function(p){ return files[p]; }).map(function(p){ return {path: p, status: files[p]}; });
+    });
+  }
+
   function changes(v){
+    if(v.commits) return changesOf(v.commits);
     return git(['diff', '--relative', '--name-status', '-M', v.prev, v.commit]).then(function(r){
       var files = [];
       r.out.split('\n').filter(Boolean).forEach(function(l){
@@ -79,6 +104,7 @@
 
   var rangeCache = {};
   function commitsIn(v){
+    if(v.commits){ var own = {}; v.commits.forEach(function(h){ own[h] = true; }); return Promise.resolve(own); }
     var key = v.prev + '..' + v.commit;
     if(rangeCache[key]) return Promise.resolve(rangeCache[key]);
     var args = v.prev === EMPTY ? ['rev-list', v.commit] : ['rev-list', v.commit, '^' + v.prev];
