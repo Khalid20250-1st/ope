@@ -257,6 +257,10 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
       do { try project.write(body["path"] as? String ?? "", body["text"] as? String ?? ""); reply(["ok": true]) }
       catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
 
+    case "log":
+      FileHandle.standardError.write(("OPE: " + (body["text"] as? String ?? "") + "\n").data(using: .utf8)!)
+      reply(["ok": true])
+
     case "libraryRemove":
       let path = body["path"] as? String ?? ""
       project.library = project.library.filter { ($0["path"] as? String) != path }

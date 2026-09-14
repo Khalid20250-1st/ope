@@ -27,5 +27,14 @@
     es.onmessage = function(m){ try{ emit(JSON.parse(m.data)); }catch(e){} };
   }
 
-  window.OPEBridge = { native: native, call: call, onChange: onChange, emit: emit };
+  /* a fault in the interface is said out loud, in the status bar and in the
+     app's own log, instead of leaving a blank window */
+  function report(msg){
+    try{ var el = document.getElementById('statusLeft'); if(el) el.textContent = 'Something went wrong: ' + msg; }catch(e){}
+    try{ call('log', {text: String(msg)}).catch(function(){}); }catch(e){}
+  }
+  window.addEventListener('error', function(e){ report((e.message || 'error') + ' at ' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  window.addEventListener('unhandledrejection', function(e){ report(e.reason && e.reason.message || String(e.reason)); });
+
+  window.OPEBridge = { native: native, call: call, onChange: onChange, emit: emit, report: report };
 })();

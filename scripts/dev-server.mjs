@@ -106,6 +106,7 @@ async function command(b){
     }
     case 'write': { await writeFile(inside(b.path), String(b.text ?? ''), 'utf8'); return { ok: true }; }
     case 'copy': return { ok: false };
+    case 'log': console.error('OPE: ' + b.text); return { ok: true };
     case 'libraryRemove': return { items: saveLibrary(library().filter(x => x.path !== String(b.path))) };
     default: throw new Error('Unknown command ' + b.cmd);
   }
