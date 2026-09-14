@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPE</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="ope">
+  <header class="top">
+    <div class="drag"></div>
+    <div class="brand">OPE</div>
+    <button class="where" id="where" type="button" title="Open a project">No project open</button>
+    <div class="drag"></div>
+  </header>
+
+  <nav class="rail" aria-label="Views">
+    <button class="ico on" data-view="projects" title="Projects" aria-label="Projects">
+      <svg viewBox="0 0 24 24"><path d="M4 5h6l2 2h8v12H4z"/><path d="M8 12h8M8 15h5"/></svg>
+    </button>
+    <button class="ico" data-view="prompt" title="The OPE prompt" aria-label="The OPE prompt">
+      <svg viewBox="0 0 24 24"><path d="M5 7l5 5-5 5"/><path d="M12 17h7"/></svg>
+    </button>
+    <button class="ico" data-view="open" title="Open a project" aria-label="Open a project">
+      <svg viewBox="0 0 24 24"><path d="M4 6h6l2 2h8v4"/><path d="M4 6v12h9"/><path d="M17 15v6M14 18h6"/></svg>
+    </button>
+  </nav>
+
+  <section class="panel projects" id="projects" aria-label="Projects">
+    <div class="ph">PROJECTS</div>
+    <div class="pb" id="projectList"></div>
+  </section>
+
+  <section class="panel versions hidden" id="versions" aria-label="Versions">
+    <div class="ph" id="versionsHead">VERSIONS</div>
+    <div class="pb" id="versionList"></div>
+  </section>
+
+  <section class="panel files" id="files" aria-label="Files">
+    <div class="ph"><span>EXPLORER</span><span class="count" id="fileCount"></span></div>
+    <div class="pb" id="tree"></div>
+  </section>
+
+  <section class="panel editor" id="editorPanel" aria-label="Code">
+    <div class="tabs">
+      <div class="tab" id="tab"><span id="tabName">Welcome</span><i id="dirty" class="dot hidden"></i></div>
+      <div class="acts">
+        <span class="tag hidden" id="lineTag"></span>
+        <button class="btn hidden" id="saveBtn" type="button">Save</button>
+        <button class="btn hidden" id="checkBtn" type="button">Checkpoint</button>
+      </div>
+    </div>
+    <div class="notice hidden" id="notice"></div>
+    <div class="welcome" id="welcome"></div>
+    <div class="code hidden" id="code"></div>
+    <div class="blank hidden" id="blank"></div>
+  </section>
+
+  <aside class="panel chat" id="chat" aria-label="OPE Chat">
+    <div class="ph"><span>OPE CHAT</span></div>
+    <div class="soon">
+      <p class="big">Coming soon</p>
+      <p>Ask OPE about your project, and build the next version without leaving the app.</p>
+    </div>
+    <div class="ask" aria-disabled="true"><span>Ask OPE about this project</span><b>↑</b></div>
+  </aside>
+
+  <footer class="status">
+    <span id="statusLeft">Ready</span>
+    <span id="statusRight"></span>
+  </footer>
+</div>
+
+<div class="sheet hidden" id="sheet" role="dialog" aria-modal="true">
+  <div class="card" id="sheetCard"></div>
+</div>
+
+<script src="vendor/vs/loader.js"></script>
+<script src="bridge.js"></script>
+<script src="git.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

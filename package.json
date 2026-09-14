@@ -1,0 +1,14 @@
+{
+  "name": "ope",
+  "private": true,
+  "description": "OPE, Out Past Engineering: see the app your AI built, version by version.",
+  "license": "MIT",
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "dev": "node scripts/dev-server.mjs",
+    "build": "zsh scripts/build.sh"
+  },
+  "devDependencies": {
+    "monaco-editor": "0.52.2"
+  }
+}

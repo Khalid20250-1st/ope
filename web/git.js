@@ -1,0 +1,135 @@
+/* VERSIONS, FROM GIT.
+
+   A version is a git tag named with the project number: 1.0, 1.1, 2.0. The OPE
+   prompt tells the AI to make one at the end of every version. A project that
+   was never built with the prompt still has a history, so when there are no
+   numbered tags, every commit is shown as a step instead.
+
+   What a version "touched" is worked out two ways:
+     changes  the files that differ from the version before it
+     lines    the lines in the file as it is NOW whose last change came from a
+              commit inside that version, so a line that was rewritten later
+              belongs to the later version, which is the truth */
+(function(){
+  var EMPTY = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';   // git's empty tree
+  var NUM = /^(?:v|ope[\/-])?(\d+)\.(\d+)$/i;
+
+  function git(args){ return OPEBridge.call('git', {args: args}); }
+
+  function isRepo(){
+    return git(['rev-parse', '--is-inside-work-tree'])
+      .then(function(r){ return r.code === 0 && /true/.test(r.out); })
+      .catch(function(){ return false; });
+  }
+
+  function loadVersions(){
+    return isRepo().then(function(repo){
+      if(!repo) return {repo:false, numbered:false, projects:[]};
+      var fmt = '%(refname:short)%09%(objectname)%09%(*objectname)%09%(creatordate:iso-strict)%09%(contents:subject)';
+      return git(['for-each-ref', '--sort=creatordate', '--format=' + fmt, 'refs/tags']).then(function(r){
+        var tags = r.out.split('\n').filter(Boolean).map(function(l){
+          var p = l.split('\t'), m = NUM.exec(p[0] || '');
+          if(!m) return null;
+          return {name: m[1] + '.' + m[2], tag: p[0], major: +m[1], minor: +m[2],
+                  commit: p[2] || p[1], date: p[3] || '', summary: p[4] || ''};
+        }).filter(Boolean);
+        if(tags.length) return numbered(tags);
+        return history();
+      });
+    });
+  }
+
+  function numbered(tags){
+    tags.sort(function(a, b){ return a.major - b.major || a.minor - b.minor; });
+    tags.forEach(function(t, i){ t.prev = i ? tags[i - 1].commit : EMPTY; });
+    var byMajor = {};
+    tags.forEach(function(t){ (byMajor[t.major] = byMajor[t.major] || []).push(t); });
+    var projects = Object.keys(byMajor).map(Number).sort(function(a, b){ return a - b; }).map(function(m){
+      return {id: m + '.0', title: 'Project ' + m + '.0', versions: byMajor[m]};
+    });
+    return {repo:true, numbered:true, projects: projects};
+  }
+
+  function history(){
+    return git(['log', '--format=%H%x09%P%x09%cI%x09%s', '-n', '300']).then(function(r){
+      var rows = r.out.split('\n').filter(Boolean).map(function(l){
+        var p = l.split('\t');
+        return {commit: p[0], parent: (p[1] || '').split(' ')[0], date: p[2], summary: p[3] || ''};
+      }).reverse();
+      if(!rows.length) return {repo:true, numbered:false, projects:[]};
+      var versions = rows.map(function(c, i){
+        return {name: 'step ' + (i + 1), commit: c.commit, prev: c.parent || EMPTY, date: c.date,
+                summary: c.summary, step: true};
+      });
+      return {repo:true, numbered:false, projects:[{id:'history', title:'History', versions: versions}]};
+    });
+  }
+
+  function changes(v){
+    return git(['diff', '--relative', '--name-status', '-M', v.prev, v.commit]).then(function(r){
+      var files = [];
+      r.out.split('\n').filter(Boolean).forEach(function(l){
+        var p = l.split('\t'), s = (p[0] || '').charAt(0);
+        if(s === 'R' || s === 'C') files.push({path: p[2], status: 'M', from: p[1]});
+        else files.push({path: p[1], status: s});
+      });
+      return files;
+    });
+  }
+
+  var rangeCache = {};
+  function commitsIn(v){
+    var key = v.prev + '..' + v.commit;
+    if(rangeCache[key]) return Promise.resolve(rangeCache[key]);
+    var args = v.prev === EMPTY ? ['rev-list', v.commit] : ['rev-list', v.commit, '^' + v.prev];
+    return git(args).then(function(r){
+      var set = {};
+      r.out.split('\n').filter(Boolean).forEach(function(h){ set[h] = true; });
+      rangeCache[key] = set;
+      return set;
+    });
+  }
+
+  /* the line numbers, in the file as it is on disk now, that the version wrote */
+  function lines(v, path){
+    return Promise.all([commitsIn(v), git(['blame', '--porcelain', '--', path])]).then(function(res){
+      var set = res[0], r = res[1], out = [];
+      if(r.code !== 0) return out;
+      r.out.split('\n').forEach(function(l){
+        var m = /^([0-9a-f]{40}) \d+ (\d+)/.exec(l);
+        if(m && set[m[1]]) out.push(+m[2]);
+      });
+      return out;
+    });
+  }
+
+  function checkpoint(path){
+    return git(['add', '--', path]).then(function(){
+      return git(['commit', '-m', 'OPE edit: ' + path, '--', path]);
+    }).then(function(r){
+      if(r.code !== 0) throw new Error((r.err || r.out || 'Nothing to save.').trim().split('\n').pop());
+      return r;
+    });
+  }
+
+  function startTracking(){
+    return git(['init']).then(function(){ return git(['add', '-A']); })
+      .then(function(){ return git(['commit', '-m', '1.0: first checkpoint']); })
+      .then(function(r){
+        if(r.code !== 0) throw new Error((r.err || r.out).trim().split('\n').pop() || 'git could not save a checkpoint.');
+        return git(['tag', '-a', '1.0', '-m', 'First checkpoint']);
+      });
+  }
+
+  function listFiles(repo){
+    if(!repo) return OPEBridge.call('list').then(function(r){ return r.files || []; });
+    return git(['ls-files', '--cached', '--others', '--exclude-standard']).then(function(r){
+      var seen = {}, out = [];
+      r.out.split('\n').forEach(function(f){ if(f && !seen[f]){ seen[f] = true; out.push(f); } });
+      return out.sort();
+    });
+  }
+
+  window.OPEGit = {EMPTY: EMPTY, isRepo: isRepo, loadVersions: loadVersions, changes: changes, lines: lines,
+                   checkpoint: checkpoint, startTracking: startTracking, listFiles: listFiles};
+})();

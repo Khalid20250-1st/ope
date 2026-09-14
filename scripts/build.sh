@@ -1,0 +1,71 @@
+#!/bin/zsh
+# Builds OPE.app into build/, and copies it to ~/Applications.
+#   zsh scripts/build.sh            build and install for this Mac
+#   SIGN="Developer ID Application: Name (TEAM)" zsh scripts/build.sh   sign for release
+set -e
+here=${0:a:h}
+root=${here:h}
+build="$root/build"
+app="$build/OPE.app"
+version=$(cd "$root" && git describe --tags --abbrev=0 2>/dev/null || echo "1.0")
+version=${version#v}
+
+echo "1/5 editor"
+[ -d "$root/node_modules/monaco-editor" ] || (cd "$root" && npm install --silent)
+node "$root/scripts/vendor.mjs"
+
+echo "2/5 icon"
+mkdir -p "$build/icon.iconset"
+swift "$root/mac/icon.swift" "$build/icon-1024.png"
+for s in 16 32 128 256 512; do
+  sips -z $s $s "$build/icon-1024.png" --out "$build/icon.iconset/icon_${s}x${s}.png" >/dev/null
+  d=$((s * 2))
+  sips -z $d $d "$build/icon-1024.png" --out "$build/icon.iconset/icon_${s}x${s}@2x.png" >/dev/null
+done
+iconutil -c icns "$build/icon.iconset" -o "$build/AppIcon.icns"
+
+echo "3/5 binary"
+swiftc -O -target arm64-apple-macos13 "$root/mac/main.swift" -o "$build/OPE-arm64" -framework Cocoa -framework WebKit -framework CoreServices
+swiftc -O -target x86_64-apple-macos13 "$root/mac/main.swift" -o "$build/OPE-x86_64" -framework Cocoa -framework WebKit -framework CoreServices
+lipo -create "$build/OPE-arm64" "$build/OPE-x86_64" -output "$build/OPE"
+
+echo "4/5 bundle"
+rm -rf "$app"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+cp "$build/OPE" "$app/Contents/MacOS/OPE"
+cp "$build/AppIcon.icns" "$app/Contents/Resources/AppIcon.icns"
+cp -R "$root/web" "$app/Contents/Resources/web"
+cp "$root/prompt/OPE-PROMPT.md" "$app/Contents/Resources/OPE-PROMPT.md"
+cat > "$app/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>OPE</string>
+  <key>CFBundleDisplayName</key><string>OPE</string>
+  <key>CFBundleIdentifier</key><string>engineering.outpast.ope</string>
+  <key>CFBundleExecutable</key><string>OPE</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>${version}</string>
+  <key>CFBundleVersion</key><string>${version}</string>
+  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>NSHumanReadableCopyright</key><string>MIT licence. Out Past Engineering.</string>
+</dict>
+</plist>
+PLIST
+
+echo "5/5 sign"
+if [ -n "$SIGN" ]; then
+  codesign --force --deep --options runtime --timestamp --sign "$SIGN" "$app"
+else
+  codesign --force --deep --sign - "$app"
+fi
+codesign --verify --deep --strict "$app"
+
+mkdir -p "$HOME/Applications"
+rm -rf "$HOME/Applications/OPE.app"
+cp -R "$app" "$HOME/Applications/OPE.app"
+echo "built $app and installed ~/Applications/OPE.app"

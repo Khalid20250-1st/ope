@@ -1,0 +1,148 @@
+/* OPE. Black, thin blue edges, white text, and one green that only ever means
+   "this belongs to the version you picked". */
+:root{
+  --bg:#000000; --panel:#000000; --edge:#5AB0E0; --edge-dim:#2A5570;
+  --ink:#F2F2F2; --sub:#9AA3AB; --faint:#5E666D;
+  --green:#22C55E; --green-wash:rgba(34,197,94,.12);
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Monaco,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font:13px/1.45 var(--mono);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+#ope{height:100vh;display:grid;gap:6px;padding:0 6px 0 0;
+  grid-template-columns:46px 176px auto 236px minmax(420px,1fr) 250px;
+  grid-template-rows:40px 1fr 24px;
+  grid-template-areas:"top top top top top top" "rail projects versions files editor chat" "status status status status status status"}
+#ope.no-chat{grid-template-columns:46px 176px auto 236px minmax(420px,1fr) 0}
+#ope.no-chat .chat{display:none}
+
+/* the title bar: room on the left for the window buttons */
+.top{grid-area:top;display:flex;align-items:center;gap:12px;padding:0 10px 0 84px;-webkit-app-region:drag}
+.top .drag{flex:1;height:100%}
+.brand{font-weight:700;letter-spacing:.2em;color:var(--edge)}
+.where{-webkit-app-region:no-drag;min-width:340px;max-width:560px;height:26px;padding:0 12px;
+  border:1px solid var(--edge);border-radius:6px;background:#000;color:var(--sub);text-align:left;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.where:hover{color:var(--ink)}
+
+.rail{grid-area:rail;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:4px}
+.ico{width:36px;height:36px;border:1px solid transparent;border-radius:8px;background:none;cursor:pointer;
+  display:grid;place-items:center;color:var(--sub)}
+.ico svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ico:hover{color:var(--ink)}
+.ico.on{color:var(--ink);border-color:#F08A3C}
+
+.panel{border:1px solid var(--edge);border-radius:8px;background:var(--panel);min-width:0;min-height:0;
+  display:flex;flex-direction:column;overflow:hidden}
+.projects{grid-area:projects}
+.versions{grid-area:versions;width:168px}
+.files{grid-area:files}
+.editor{grid-area:editor}
+.chat{grid-area:chat}
+.ph{height:30px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;
+  font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--sub);border-bottom:1px solid var(--edge-dim)}
+.ph .count{letter-spacing:0;font-weight:400;color:var(--faint)}
+.pb{flex:1;overflow:auto;padding:6px 0}
+.pb::-webkit-scrollbar,.welcome::-webkit-scrollbar{width:8px;height:8px}
+.pb::-webkit-scrollbar-thumb,.welcome::-webkit-scrollbar-thumb{background:#1f2a31;border-radius:4px}
+
+/* a row in any list */
+.row{display:flex;align-items:center;gap:6px;width:100%;min-height:26px;padding:3px 10px;border:1px solid transparent;
+  background:none;text-align:left;cursor:pointer;white-space:nowrap;border-radius:4px}
+.row:hover{background:#0c1116}
+.row.sel{background:#0f1a22;color:#fff}
+.row .caret{width:12px;flex:0 0 12px;color:var(--sub);text-align:center}
+.row .name{overflow:hidden;text-overflow:ellipsis}
+.row .meta{margin-left:auto;color:var(--faint);font-size:11px}
+.row.green{border-color:var(--green);background:var(--green-wash)}
+.row.green .meta{color:var(--green)}
+.row.gone{color:var(--faint);text-decoration:line-through}
+.ver{display:block;white-space:normal;padding:6px 10px}
+.ver b{display:block;font-size:13px}
+.ver span{display:block;color:var(--sub);font-size:11px;line-height:1.35;margin-top:2px}
+.ver.sel{border-color:var(--ink)}
+.empty{padding:10px 12px;color:var(--sub);white-space:normal}
+.empty b{color:var(--ink)}
+.group{padding:10px 12px 4px;font-size:11px;letter-spacing:.1em;color:var(--faint)}
+
+/* the editor side */
+.tabs{height:34px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--edge-dim);padding:0 8px}
+.tab{height:24px;display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid #F08A3C;border-radius:5px;
+  min-width:90px;flex:0 1 auto;overflow:hidden;white-space:nowrap;margin-right:8px}
+.tab span{overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.acts{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.btn{height:24px;padding:0 10px;white-space:nowrap;border:1px solid var(--edge);border-radius:5px;background:#000;cursor:pointer}
+.btn:hover{background:#0c1116}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.go{border-color:var(--green);color:var(--green)}
+.tag{white-space:nowrap;font-size:11px;color:var(--green);border:1px solid var(--green);border-radius:4px;padding:1px 6px}
+.notice{padding:6px 12px;border-bottom:1px solid var(--edge-dim);color:var(--ink);background:#0b1014;
+  display:flex;gap:10px;align-items:center}
+.code{flex:1;min-height:0}
+.blank{flex:1;display:grid;place-items:center;color:var(--sub);padding:20px;text-align:center}
+
+/* green boxes around the lines of the picked version */
+.ope-line{background:var(--green-wash);box-shadow:inset 1px 0 0 var(--green),inset -1px 0 0 var(--green)}
+.ope-line.first{box-shadow:inset 1px 0 0 var(--green),inset -1px 0 0 var(--green),inset 0 1px 0 var(--green)}
+.ope-line.last{box-shadow:inset 1px 0 0 var(--green),inset -1px 0 0 var(--green),inset 0 -1px 0 var(--green)}
+.ope-line.first.last{box-shadow:inset 0 0 0 1px var(--green)}
+.ope-gutter{background:var(--green);width:3px!important;margin-left:4px}
+
+/* the welcome: a terminal, not a brochure */
+.welcome{flex:1;overflow:auto;padding:36px 40px}
+.term{max-width:760px}
+.term h1{margin:0 0 4px;font-size:30px;letter-spacing:.14em}
+.term .under{color:var(--sub);margin:0 0 28px}
+.term .line{margin:0 0 10px}
+.term .line i{font-style:normal;color:var(--green)}
+.term .line em{font-style:normal;color:var(--sub)}
+.term .acts2{display:flex;gap:10px;margin:26px 0 22px;flex-wrap:wrap}
+.term .big{height:34px;padding:0 16px;font-size:13px}
+.term pre{margin:0;max-height:300px;overflow:auto;border:1px solid var(--edge-dim);border-radius:6px;padding:14px;
+  color:var(--sub);white-space:pre-wrap;font:12px/1.5 var(--mono)}
+.term .recent{margin-top:26px}
+.term .recent button{display:block;background:none;border:0;color:var(--edge);cursor:pointer;padding:4px 0;text-align:left}
+.term .recent button:hover{color:var(--ink)}
+
+/* OPE Chat, coming soon */
+.soon{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+  padding:20px;color:var(--sub)}
+.soon .big{margin:0 0 8px;color:var(--ink);font-size:15px;letter-spacing:.08em}
+.soon p{margin:0;max-width:220px}
+.ask{margin:10px;height:74px;border:1px solid #F08A3C;border-radius:8px;padding:10px;display:flex;
+  justify-content:space-between;align-items:flex-end;color:var(--faint);opacity:.55;cursor:not-allowed}
+.ask span{align-self:flex-start}
+
+.status{grid-area:status;display:flex;justify-content:space-between;align-items:center;padding:0 12px;
+  color:var(--sub);font-size:11px}
+
+/* a small dialog */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:50}
+.card{width:min(520px,92vw);border:1px solid var(--edge);border-radius:10px;background:#000;padding:20px}
+.card h2{margin:0 0 8px;font-size:15px}
+.card p{margin:0 0 14px;color:var(--sub)}
+.card input{width:100%;height:32px;border:1px solid var(--edge-dim);border-radius:6px;background:#000;color:var(--ink);
+  padding:0 10px;font:13px var(--mono);margin-bottom:12px}
+.card .acts{justify-content:flex-end}
+
+/* a narrow window: the chat folds away first, then the projects stack */
+@media (max-width:1180px){
+  #ope{grid-template-columns:46px 170px auto 220px minmax(320px,1fr) 0}
+  .chat{display:none}
+}
+@media (max-width:860px){
+  #ope{grid-template-columns:46px 1fr;grid-template-rows:40px auto auto auto minmax(360px,1fr) 24px;
+    grid-template-areas:"top top" "rail projects" "rail versions" "rail files" "rail editor" "status status";
+    height:auto;min-height:100vh}
+  html,body{overflow:auto}
+  .versions{width:auto}
+  .projects,.versions{max-height:220px}
+  .files{max-height:320px}
+  .where{min-width:0;flex:1}
+  .top{padding-left:84px}
+}
