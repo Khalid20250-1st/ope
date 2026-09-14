@@ -152,6 +152,7 @@
     return step.then(function(r){
       S.root = r.root; S.project = null; S.version = null; S.open = {}; S.path = ''; S.changed = {}; S.dirs = {}; S.gone = [];
       if(S.recent.indexOf(r.root) < 0) S.recent.unshift(r.root);
+      if(r.library) S.library = r.library;
       $('where').textContent = r.root;
       return reload();
     }).then(function(){
@@ -180,25 +181,60 @@
   }
 
   /* ------------------------------------------------------------ projects */
-  function renderProjects(){
-    var box = $('projectList');
-    if(!S.root){ box.innerHTML = '<div class="empty">Open a project to begin.</div>'; return; }
+  /* THE LIBRARY. Every project folder you keep, in one list. The open one is
+     expanded to show its numbered projects; any other opens with one click.
+     The list lives on this Mac only, never in the app itself. */
+  function inner(){
+    if(!S.root) return '';
     if(!S.repo){
-      box.innerHTML = '<div class="empty"><b>No versions yet.</b><br>This folder is not saved with git, so OPE cannot see its history.'+
+      return '<div class="empty sub"><b>No versions yet.</b><br>This folder is not saved with git, so OPE cannot see its history.'+
         '<br><br><button class="btn go" id="trackBtn" type="button">Start tracking as 1.0</button></div>';
-      $('trackBtn').onclick = function(){
-        var b = $('trackBtn'); b.disabled = true; b.textContent = 'Saving...';
-        OPEGit.startTracking().then(reload).catch(function(e){ b.disabled = false; b.textContent = 'Start tracking as 1.0'; status(e.message); });
-      };
-      return;
     }
-    if(!S.projects.length){ box.innerHTML = '<div class="empty"><b>No checkpoints yet.</b><br>When your AI saves version 1.0 it shows up here.</div>'; return; }
-    box.innerHTML = (S.numbered ? '' : '<div class="empty">Built without the OPE prompt, so every save shows as a step.</div>')+
+    if(!S.projects.length) return '<div class="empty sub"><b>No checkpoints yet.</b><br>When your AI saves version 1.0 it shows up here.</div>';
+    return (S.numbered ? '' : '<div class="empty sub">Built without the OPE prompt, so every save shows as a step.</div>')+
       S.projects.map(function(p, i){
         var on = S.project && S.project.id === p.id;
-        return '<button class="row'+(on ? ' sel' : '')+'" data-p="'+i+'" type="button"><span class="caret">'+(on ? '▾' : '▸')+'</span>'+
+        return '<button class="row sub'+(on ? ' sel' : '')+'" data-p="'+i+'" type="button"><span class="caret">'+(on ? '▾' : '▸')+'</span>'+
           '<span class="name">'+esc(p.title)+'</span><span class="meta">'+p.versions.length+'</span></button>';
       }).join('');
+  }
+
+  function renderProjects(){
+    var box = $('projectList');
+    var lib = (S.library || []).slice();
+    if(S.root && !lib.some(function(x){ return x.path === S.root; })) lib.unshift({path: S.root, name: base(S.root)});
+    var html = lib.map(function(item, i){
+      var active = item.path === S.root, open = active && !S.innerShut;
+      return '<div class="lib'+(active ? ' on' : '')+'">'+
+        '<button class="row libname" data-lib="'+i+'" type="button" title="'+esc(item.path)+'">'+
+          '<span class="caret">'+(open ? '▾' : '▸')+'</span><span class="name">'+esc(item.name || base(item.path))+'</span>'+
+          '<span class="x" data-unlib="'+i+'" title="Take it off the list" role="button" aria-label="Take it off the list">×</span></button>'+
+        (open ? inner() : '')+'</div>';
+    }).join('');
+    box.innerHTML = (html || '<div class="empty">Add a project folder to begin.</div>')+
+      '<button class="row addlib" id="addLib" type="button"><span class="caret">+</span><span class="name">Add a project folder</span></button>';
+    S.libShown = lib;
+
+    Array.prototype.forEach.call(box.querySelectorAll('[data-lib]'), function(b){
+      b.onclick = function(e){
+        var item = S.libShown[+b.getAttribute('data-lib')];
+        if(e.target.hasAttribute('data-unlib')){
+          OPEBridge.call('libraryRemove', {path: item.path}).then(function(r){ S.library = r.items || []; renderProjects(); });
+          return;
+        }
+        if(item.path === S.root){ S.innerShut = !S.innerShut; renderProjects(); return; }
+        S.innerShut = false;
+        openRoot(item.path);
+      };
+    });
+    $('addLib').onclick = pickProject;
+    var track = $('trackBtn');
+    if(track) track.onclick = function(){
+      if(!confirm('This saves the folder with git, which adds a hidden .git folder inside it.\n\n'+
+                  'If this folder is uploaded as a website exactly as it is, that .git folder would go with it. Continue?')) return;
+      track.disabled = true; track.textContent = 'Saving...';
+      OPEGit.startTracking().then(reload).catch(function(e){ track.disabled = false; track.textContent = 'Start tracking as 1.0'; status(e.message); });
+    };
     Array.prototype.forEach.call(box.querySelectorAll('[data-p]'), function(b){
       b.onclick = function(){
         var p = S.projects[+b.getAttribute('data-p')];
@@ -466,6 +502,7 @@
     Promise.race([loadMonaco(), new Promise(function(done){ setTimeout(done, 8000); })])
   ]).then(function(res){
     S.recent = res[0].recent || [];
+    S.library = res[0].library || [];
     S.promptText = res[1].text || '';
     if(res[0].root) openRoot(res[0].root, true);
     else welcome();

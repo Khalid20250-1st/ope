@@ -40,6 +40,12 @@ final class Project {
     set { UserDefaults.standard.set(Array(newValue.prefix(8)), forKey: "recent") }
   }
 
+  /* the library of project folders, kept in this Mac's own settings, never in the app */
+  var library: [[String: String]] {
+    get { (UserDefaults.standard.array(forKey: "library") as? [[String: String]]) ?? [] }
+    set { UserDefaults.standard.set(newValue, forKey: "library") }
+  }
+
   func open(_ path: String) throws -> String {
     let expanded = (path as NSString).expandingTildeInPath
     var isDir: ObjCBool = false
@@ -53,6 +59,9 @@ final class Project {
     r.insert(url.path, at: 0)
     recent = r
     UserDefaults.standard.set(url.path, forKey: "last")
+    if !library.contains(where: { $0["path"] == url.path }) {
+      library = library + [["path": url.path, "name": url.lastPathComponent]]
+    }
     watch()
     return url.path
   }
@@ -206,10 +215,10 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
       var root = project.root?.path ?? ""
       if root.isEmpty, let last = UserDefaults.standard.string(forKey: "last"),
          FileManager.default.fileExists(atPath: last), let opened = try? project.open(last) { root = opened }
-      reply(["kind": "mac", "root": root, "recent": project.recent])
+      reply(["kind": "mac", "root": root, "recent": project.recent, "library": project.library])
 
     case "open":
-      do { reply(["root": try project.open(body["path"] as? String ?? "")]) } catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
+      do { reply(["root": try project.open(body["path"] as? String ?? ""), "library": project.library]) } catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
 
     case "pick":
       let panel = NSOpenPanel()
@@ -220,7 +229,7 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
       panel.message = "Pick the folder your AI built the project in."
       let done: (NSApplication.ModalResponse) -> Void = { r in
         guard r == .OK, let url = panel.url else { reply(["root": ""]); return }
-        do { reply(["root": try self.project.open(url.path)]) } catch { fail("That folder could not be opened.") }
+        do { reply(["root": try self.project.open(url.path), "library": self.project.library]) } catch { fail("That folder could not be opened.") }
       }
       if let w = window { panel.beginSheetModal(for: w, completionHandler: done) } else { done(panel.runModal()) }
 
@@ -247,6 +256,11 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
     case "write":
       do { try project.write(body["path"] as? String ?? "", body["text"] as? String ?? ""); reply(["ok": true]) }
       catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
+
+    case "libraryRemove":
+      let path = body["path"] as? String ?? ""
+      project.library = project.library.filter { $0["path"] != path }
+      reply(["items": project.library])
 
     case "copy":
       NSPasteboard.general.clearContents()

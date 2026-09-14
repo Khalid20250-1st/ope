@@ -7,7 +7,7 @@
 // arguments and the same answer.
 import http from 'node:http';
 import { readFile, writeFile, stat, readdir } from 'node:fs/promises';
-import { readFileSync, watch, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, watch, existsSync, statSync } from 'node:fs';
 import { join, resolve, relative, extname, dirname, sep } from 'node:path';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +18,10 @@ const PROMPT = join(HERE, '..', 'prompt', 'OPE-PROMPT.md');
 const PORT = Number(process.env.PORT || 8790);
 
 let root = process.env.OPE_ROOT || '';
+/* the library of project folders, kept on this machine only */
+const LIB = join(process.env.HOME, '.config', 'ope', 'library.json');
+function library(){ try { return JSON.parse(readFileSync(LIB, 'utf8')); } catch { return []; } }
+function saveLibrary(items){ mkdirSync(dirname(LIB), { recursive: true }); writeFileSync(LIB, JSON.stringify(items, null, 2)); return items; }
 const recent = [];
 const listeners = new Set();
 let watcher = null;
@@ -77,14 +81,16 @@ function watchRoot(){
 
 async function command(b){
   switch (b.cmd) {
-    case 'hello': return { kind: 'dev', root, recent };
+    case 'hello': return { kind: 'dev', root, recent, library: library() };
     case 'open': {
       const p = resolve(String(b.path || '').replace(/^~(?=$|\/)/, process.env.HOME));
       if (!existsSync(p) || !statSync(p).isDirectory()) throw new Error('That folder does not exist.');
       root = p;
       const i = recent.indexOf(p); if (i >= 0) recent.splice(i, 1); recent.unshift(p); recent.length = Math.min(recent.length, 8);
       watchRoot();
-      return { root };
+      const lib = library();
+      if (!lib.some(x => x.path === p)) { lib.push({ path: p, name: p.split('/').pop() }); saveLibrary(lib); }
+      return { root, library: lib };
     }
     case 'pick': return { root: '', manual: true };
     case 'prompt': return { text: readFileSync(PROMPT, 'utf8') };
@@ -100,6 +106,7 @@ async function command(b){
     }
     case 'write': { await writeFile(inside(b.path), String(b.text ?? ''), 'utf8'); return { ok: true }; }
     case 'copy': return { ok: false };
+    case 'libraryRemove': return { items: saveLibrary(library().filter(x => x.path !== String(b.path))) };
     default: throw new Error('Unknown command ' + b.cmd);
   }
 }

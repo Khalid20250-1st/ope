@@ -36,7 +36,7 @@ button{font:inherit;color:inherit}
 
 .panel{border:1px solid var(--edge);border-radius:8px;background:var(--panel);min-width:0;min-height:0;
   display:flex;flex-direction:column;overflow:hidden}
-.projects{grid-area:projects;width:176px}
+.projects{grid-area:projects;width:214px}
 .versions{grid-area:versions;width:168px}
 .files{grid-area:files}
 .editor{grid-area:editor}
@@ -175,3 +175,15 @@ button{font:inherit;color:inherit}
 .chat .log{flex:1;overflow:auto;display:flex;flex-direction:column}
 .chat .log .soon{flex:1}
 @media (max-width:1120px){ .tag{display:none!important} }
+
+/* the library of project folders */
+.lib{margin:0 0 2px}
+.lib .libname{font-weight:600}
+.lib.on>.libname{color:#fff}
+.lib .libname .x{margin-left:auto;padding:0 4px;color:var(--faint);visibility:hidden;border-radius:3px}
+.lib .libname:hover .x{visibility:visible}
+.lib .libname .x:hover{color:var(--ink);background:#1a1a1a}
+.row.sub{padding-left:24px}
+.empty.sub{padding-left:26px;font-size:12px}
+.addlib{color:var(--sub);margin-top:6px;border-top:1px solid var(--edge-dim);border-radius:0}
+.addlib:hover{color:var(--ink)}

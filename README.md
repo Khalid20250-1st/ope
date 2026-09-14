@@ -25,6 +25,10 @@ which folders, files and lines each version made.
 4. **Fix it right there.** Edit the code, press Save (⌘S), and the real file
    changes. Press Checkpoint to keep your edit as its own save point.
 
+Keep every project folder you have in the Projects list. The open one expands to
+show its numbered projects, and any other opens with one click. The list is kept
+on your Mac only.
+
 OPE watches the folder. When your AI writes files or saves a new version, OPE
 updates on its own.
 
