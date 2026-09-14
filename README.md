@@ -1,4 +1,4 @@
-<img src="logo/png/icon-white-256.png" width="96" alt="OPE">
+<img src="logo/png/icon-white-512.png" width="96" alt="OPE">
 
 # OPE
 
