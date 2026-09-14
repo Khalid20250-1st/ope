@@ -706,6 +706,7 @@
   ]).then(function(res){
     S.recent = res[0].recent || [];
     S.library = res[0].library || [];
+    renderProjects();
     S.promptText = res[1].text || '';
     if(res[0].root) openRoot(res[0].root, true);
     else welcome();
