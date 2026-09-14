@@ -669,6 +669,10 @@
     var asked = change ? 'Explain in plain words what this code does now. Do not suggest, write or describe any change or fix.' : text;
     OPEBridge.call('chat', Object.assign({question: asked}, ctx)).then(function(r){
       var answer = noCode(r.answer);
+      /* Apple's model opens every answer with Hi, because every question is a
+         fresh conversation to it. Only a greeting gets one back. */
+      if(!/^\s*(hi|hey|hello|yo|sup|good (morning|afternoon|evening))\b/i.test(text))
+        answer = answer.replace(/^\s*(hi|hey|hello)( there)?[!.,]?\s*/i, '');
       wait.className = 'chat-msg ai';
       wait.innerHTML = (change ? '<p>' + esc(SAYS_NO) + '</p>' : '') + (chatText(answer) || '<p>No answer came back. Try asking again.</p>');
     }).catch(function(err){
