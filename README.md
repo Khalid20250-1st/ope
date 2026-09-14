@@ -34,6 +34,18 @@ updates on its own.
 
 ![A file open: the lines from version 1.1 are boxed in green](docs/lines.png)
 
+## OPE Chat
+
+Ask what a file or a few selected lines do, in plain words. OPE Chat **explains
+only**: it never writes, fixes or changes code, because a free model small
+enough to run on a laptop explains well and fixes badly. Your AI coder makes
+the changes.
+
+It runs on your Mac and your project never leaves it. OPE uses Apple's own model
+when the Mac has Apple Intelligence (nothing to download), and otherwise
+Qwen2.5 Coder 3B through [Ollama](https://ollama.com), a one time 1.9 GB download
+OPE starts for you.
+
 ## Projects built without the prompt
 
 They still open. The files always show. If the folder has a git history, every

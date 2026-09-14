@@ -79,6 +79,73 @@ function watchRoot(){
   });
 }
 
+/* OPE Chat, the twin of the Chat enum in main.swift. A browser has no Apple
+   model, so here it is always Ollama or nothing. */
+const CHAT_MODEL = 'qwen2.5-coder:3b';
+const OLLAMA = 'http://127.0.0.1:11434';
+let pulling = null;
+const CHAT_RULES = [
+  'You are OPE Chat, inside OPE, an app for people who build software by talking to an AI coder and cannot read code themselves.',
+  'You ONLY explain. Say what a file, a function or a line does, why it is there, and how it connects to the rest, in plain words a non programmer understands. Explain any technical word the first time you use it.',
+  'You never write code, never rewrite it, never suggest a fix, never debug, and never add a feature. If you are asked to fix, change, build, add or debug something, answer in one sentence that OPE Chat only explains code, and that their AI coder can make the change. Then, if it helps, explain what the code there does now.',
+  'Only talk about the code you are shown. If it is not enough to answer, say what is missing.',
+  'Keep answers short: a few short paragraphs at most.'
+].join('\n');
+async function ollamaHasModel(){
+  try {
+    const r = await fetch(OLLAMA + '/api/tags', { signal: AbortSignal.timeout(2000) });
+    const j = await r.json();
+    return (j.models || []).some(m => m.name === CHAT_MODEL || m.name.startsWith(CHAT_MODEL));
+  } catch { return null; }
+}
+function chatPrompt(b, budget){
+  const head = [];
+  if (b.project) head.push('Project: ' + b.project);
+  if (b.version) head.push('Version picked: ' + b.version);
+  if (b.file) head.push('File open: ' + b.file);
+  if (b.lines) head.push('Lines selected: ' + b.lines);
+  let code = String(b.code || '');
+  if (code.length > budget) code = code.slice(0, budget) + '\n[the rest of the file was cut to fit]';
+  return head.join('\n') + (code ? '\n\nThe code:\n```\n' + code + '\n```' : '') + '\n\nQuestion: ' + String(b.question || '');
+}
+async function chatEngine(){
+  const has = await ollamaHasModel();
+  if (has === true) return { engine: 'ollama', label: 'Qwen2.5 Coder 3B, on this Mac' };
+  if (has === false) return Object.assign({ engine: 'need-model', label: 'Needs a 1.9 GB download' }, pulling ? { pulling } : {});
+  const installed = ['/usr/local/bin/ollama', '/opt/homebrew/bin/ollama', '/Applications/Ollama.app'].some(existsSync);
+  return installed ? { engine: 'start-ollama', label: 'Open Ollama to use OPE Chat' }
+                   : { engine: 'none', label: 'Needs Ollama, free, from ollama.com' };
+}
+async function chatAsk(b){
+  if (await ollamaHasModel() !== true) throw new Error('OPE Chat has no model on this Mac yet.');
+  const r = await fetch(OLLAMA + '/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model: CHAT_MODEL, stream: false, options: { num_ctx: 8192, temperature: 0.2 },
+      messages: [{ role: 'system', content: CHAT_RULES }, { role: 'user', content: chatPrompt(b, 18000) }] }) });
+  const j = await r.json();
+  if (j.error) throw new Error('Ollama could not answer: ' + j.error);
+  return { answer: (j.message && j.message.content) || '', engine: 'ollama' };
+}
+function chatPull(){
+  if (pulling) return;
+  pulling = { status: 'starting', completed: 0, total: 0 };
+  (async () => {
+    try {
+      const r = await fetch(OLLAMA + '/api/pull', { method: 'POST', body: JSON.stringify({ model: CHAT_MODEL, stream: true }) });
+      const dec = new TextDecoder(); let buf = '';
+      for await (const chunk of r.body) {
+        buf += dec.decode(chunk, { stream: true });
+        let i; while ((i = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, i); buf = buf.slice(i + 1);
+          try { const j = JSON.parse(line);
+            if (j.error) { pulling = { status: 'error', error: j.error }; return; }
+            pulling = { status: j.status || '', total: j.total, completed: j.completed }; } catch {}
+        }
+      }
+      pulling = null;
+    } catch { pulling = { status: 'error', error: 'The download stopped. Check Ollama is open and try again.' }; }
+  })();
+}
+
 async function command(b){
   switch (b.cmd) {
     case 'hello': return { kind: 'dev', root, recent, library: library() };
@@ -105,6 +172,10 @@ async function command(b){
       return { text: buf.toString('utf8'), size: s.size };
     }
     case 'write': { await writeFile(inside(b.path), String(b.text ?? ''), 'utf8'); return { ok: true }; }
+    case 'chatEngine': return chatEngine();
+    case 'chat': return chatAsk(b);
+    case 'chatPull': chatPull(); return { ok: true };
+    case 'chatOpen': return { ok: false };
     case 'copy': return { ok: false };
     case 'log': console.error('OPE: ' + b.text); return { ok: true };
     case 'libraryRemove': return { items: saveLibrary(library().filter(x => x.path !== String(b.path))) };

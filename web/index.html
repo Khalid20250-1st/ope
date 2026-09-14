@@ -60,14 +60,16 @@
   <aside class="panel chat" id="chat" aria-label="OPE Chat">
     <div class="ph"><button class="logo-btn" id="chatLogo" type="button" title="Fold or open OPE Chat" aria-label="Fold or open OPE Chat"><img src="img/mark.png" alt=""></button><span class="label">OPE CHAT</span></div>
     <div class="pb log" id="chatLog">
-      <div class="soon">
-        <p class="big">Coming soon</p>
-        <p>Ask OPE about your project, and build the next version without leaving the app.</p>
+      <div class="soon" id="chatIntro">
+        <p class="big">Ask what the code does</p>
+        <p>Open a file, or select some lines, and ask. OPE Chat explains. It does not change your code: your AI coder does that.</p>
+        <p class="private">Runs on this Mac. Your project never leaves it.</p>
+        <div class="setup hidden" id="chatSetup"></div>
       </div>
     </div>
     <form class="ask" id="askForm">
-      <textarea id="askIn" placeholder="Ask OPE about this project" rows="3"></textarea>
-      <div class="row2"><span>OPE Chat is coming soon</span><button class="send" type="submit" aria-label="Send">↑</button></div>
+      <textarea id="askIn" placeholder="What does this file do?" rows="3"></textarea>
+      <div class="row2"><span id="chatEngine">Looking for a model on this Mac</span><button class="send" type="submit" aria-label="Send">↑</button></div>
     </form>
   </aside>
 

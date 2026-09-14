@@ -172,6 +172,18 @@ button{font:inherit;color:inherit}
 .ask .send:hover{border-color:var(--edge)}
 .chat-msg{margin:10px 10px 0;padding:8px 10px;border:1px solid var(--edge-dim);border-radius:6px;color:var(--sub);font-size:12px}
 .chat-msg.me{color:var(--ink);border-color:var(--edge)}
+.chat-msg.ai{color:var(--ink);line-height:1.55;white-space:normal}
+.chat-msg.ai p{margin:0 0 8px}.chat-msg.ai p:last-child{margin:0}
+.chat-msg.ai code{font-family:Menlo,monospace;font-size:11px;color:#9fe870}
+.chat-msg .about{display:block;margin-bottom:6px;color:var(--faint);font-size:10.5px;letter-spacing:.04em}
+.chat-msg.wait{color:var(--faint)}
+.chat-msg.bad{color:#ff8a80;border-color:#5a2a26}
+.soon .private{margin-top:10px;color:var(--faint);font-size:11px}
+.setup{margin-top:14px;max-width:230px;display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.setup button{border:1px solid var(--edge);border-radius:6px;background:#000;color:var(--ink);padding:8px 10px;cursor:pointer;font:inherit;font-size:12px}
+.setup button:hover{background:#0b1116}
+.setup .bar{height:4px;border:1px solid var(--edge-dim);border-radius:3px;overflow:hidden}
+.setup .bar i{display:block;height:100%;width:0;background:#22c55e}
 .chat .log{flex:1;overflow:auto;display:flex;flex-direction:column}
 .chat .log .soon{flex:1}
 @media (max-width:1120px){ .tag{display:none!important} }

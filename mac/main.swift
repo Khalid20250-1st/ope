@@ -11,6 +11,9 @@
 import Cocoa
 import WebKit
 import CoreServices
+#if arch(arm64) && canImport(FoundationModels)
+import FoundationModels
+#endif
 
 let SCHEME = "ope"
 let HOME = URL(string: "ope://app/index.html")!
@@ -195,6 +198,152 @@ final class Bundled: NSObject, WKURLSchemeHandler {
   func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
 }
 
+// ---------------------------------------------------------------- OPE Chat
+
+/* OPE CHAT EXPLAINS. IT DOES NOT BUILD, FIX OR DEBUG.
+
+   A free model small enough to run on a laptop reads and explains code well.
+   Fixing and adding to an existing app is the hardest thing a model does, and a
+   small one does it confidently and wrong. So OPE Chat promises the one thing
+   it does well, and says so when asked for the rest.
+
+   Two engines, both on this Mac, and the project never leaves it:
+     1. Apple's own model, where the Mac has Apple Intelligence. Nothing to download.
+     2. Qwen2.5 Coder 3B through Ollama, for every other Mac. A 1.9 GB download
+        OPE starts for you once Ollama is installed. */
+enum Chat {
+  static let model = "qwen2.5-coder:3b"
+  static let ollama = URL(string: "http://127.0.0.1:11434")!
+  static var pulling: [String: Any]? = nil
+
+  static let rules = """
+  You are OPE Chat, inside OPE, an app for people who build software by talking to an AI \
+  coder and cannot read code themselves.
+  You ONLY explain. Say what a file, a function or a line does, why it is there, and how \
+  it connects to the rest, in plain words a non programmer understands. Explain any \
+  technical word the first time you use it.
+  You never write code, never rewrite it, never suggest a fix, never debug, and never add \
+  a feature. If you are asked to fix, change, build, add or debug something, answer in \
+  one sentence that OPE Chat only explains code, and that their AI coder can make the \
+  change. Then, if it helps, explain what the code there does now.
+  Only talk about the code you are shown. If it is not enough to answer, say what is missing.
+  Keep answers short: a few short paragraphs at most.
+  """
+
+  static func appleReady() -> Bool {
+  #if arch(arm64) && canImport(FoundationModels)
+    if #available(macOS 26, *) {
+      if case .available = SystemLanguageModel.default.availability { return true }
+    }
+  #endif
+    return false
+  }
+
+  static func ollamaInstalled() -> Bool {
+    ["/usr/local/bin/ollama", "/opt/homebrew/bin/ollama", "/Applications/Ollama.app"]
+      .contains { FileManager.default.fileExists(atPath: $0) }
+  }
+
+  /* nil when Ollama is not answering, otherwise whether the model is there */
+  static func ollamaHasModel() async -> Bool? {
+    var req = URLRequest(url: ollama.appendingPathComponent("api/tags"))
+    req.timeoutInterval = 2
+    guard let (data, _) = try? await URLSession.shared.data(for: req),
+          let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+    let names = (j["models"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
+    return names.contains { $0 == model || $0.hasPrefix(model) }
+  }
+
+  static func engine() async -> [String: Any] {
+    if appleReady() { return ["engine": "apple", "label": "Apple Intelligence, on this Mac"] }
+    switch await ollamaHasModel() {
+    case .some(true): return ["engine": "ollama", "label": "Qwen2.5 Coder 3B, on this Mac"]
+    case .some(false):
+      var out: [String: Any] = ["engine": "need-model", "label": "Needs a 1.9 GB download"]
+      if let p = pulling { out["pulling"] = p }
+      return out
+    case .none:
+      return ollamaInstalled()
+        ? ["engine": "start-ollama", "label": "Open Ollama to use OPE Chat"]
+        : ["engine": "none", "label": "Needs Ollama, free, from ollama.com"]
+    }
+  }
+
+  /* the code is cut to what the engine can read at once, with the question and
+     the rules always kept whole */
+  static func prompt(_ b: [String: Any], budget: Int) -> String {
+    var head: [String] = []
+    if let v = b["project"] as? String, !v.isEmpty { head.append("Project: \(v)") }
+    if let v = b["version"] as? String, !v.isEmpty { head.append("Version picked: \(v)") }
+    if let v = b["file"] as? String, !v.isEmpty { head.append("File open: \(v)") }
+    if let v = b["lines"] as? String, !v.isEmpty { head.append("Lines selected: \(v)") }
+    var code = b["code"] as? String ?? ""
+    if code.count > budget { code = String(code.prefix(budget)) + "\n[the rest of the file was cut to fit]" }
+    let q = b["question"] as? String ?? ""
+    return head.joined(separator: "\n") + (code.isEmpty ? "" : "\n\nThe code:\n```\n\(code)\n```") + "\n\nQuestion: \(q)"
+  }
+
+  static func ask(_ b: [String: Any]) async throws -> [String: Any] {
+  #if arch(arm64) && canImport(FoundationModels)
+    if #available(macOS 26, *), appleReady() {
+      let session = LanguageModelSession(instructions: rules)
+      do {
+        let r = try await session.respond(to: prompt(b, budget: 7000))
+        return ["answer": r.content, "engine": "apple"]
+      } catch {
+        /* a file too big for the small window, or a guardrail: say it plainly */
+        let text = "\(error)"
+        if text.localizedCaseInsensitiveContains("context") || text.localizedCaseInsensitiveContains("exceeded") {
+          return ["answer": "That is more code than this model can read at once. Select the part you are asking about and ask again.", "engine": "apple"]
+        }
+        throw OPEError("Apple's model could not answer: \(text)")
+      }
+    }
+  #endif
+    guard await ollamaHasModel() == true else { throw OPEError("OPE Chat has no model on this Mac yet.") }
+    var req = URLRequest(url: ollama.appendingPathComponent("api/chat"))
+    req.httpMethod = "POST"
+    req.timeoutInterval = 180
+    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    req.httpBody = try JSONSerialization.data(withJSONObject: [
+      "model": model, "stream": false,
+      "options": ["num_ctx": 8192, "temperature": 0.2],
+      "messages": [["role": "system", "content": rules], ["role": "user", "content": prompt(b, budget: 18000)]]
+    ])
+    let (data, _) = try await URLSession.shared.data(for: req)
+    let j = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    if let e = j?["error"] as? String { throw OPEError("Ollama could not answer: \(e)") }
+    let answer = (j?["message"] as? [String: Any])?["content"] as? String ?? ""
+    return ["answer": answer, "engine": "ollama"]
+  }
+
+  /* the 1.9 GB download, started once, reported through engine() as it goes */
+  static func pull() {
+    if pulling != nil { return }
+    pulling = ["status": "starting", "completed": 0, "total": 0]
+    Task {
+      var req = URLRequest(url: ollama.appendingPathComponent("api/pull"))
+      req.httpMethod = "POST"
+      req.timeoutInterval = 3600
+      req.httpBody = try? JSONSerialization.data(withJSONObject: ["model": model, "stream": true])
+      do {
+        let (bytes, _) = try await URLSession.shared.bytes(for: req)
+        for try await line in bytes.lines {
+          guard let j = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any] else { continue }
+          if let e = j["error"] as? String { pulling = ["status": "error", "error": e]; return }
+          var p: [String: Any] = ["status": j["status"] as? String ?? ""]
+          if let t = j["total"] as? Int { p["total"] = t }
+          if let c = j["completed"] as? Int { p["completed"] = c }
+          pulling = p
+        }
+        pulling = nil
+      } catch {
+        pulling = ["status": "error", "error": "The download stopped. Check Ollama is open and try again."]
+      }
+    }
+  }
+}
+
 // ---------------------------------------------------------------- the bridge
 
 final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
@@ -265,6 +414,24 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
       let path = body["path"] as? String ?? ""
       project.library = project.library.filter { ($0["path"] as? String) != path }
       reply(["items": project.library])
+
+    case "chatEngine":
+      Task { let r = await Chat.engine(); DispatchQueue.main.async { reply(r) } }
+
+    case "chat":
+      Task {
+        do { let r = try await Chat.ask(body); DispatchQueue.main.async { reply(r) } }
+        catch let e as OPEError { DispatchQueue.main.async { fail(e.message) } }
+        catch { DispatchQueue.main.async { fail("OPE Chat could not answer: \(error.localizedDescription)") } }
+      }
+
+    case "chatPull":
+      Chat.pull(); reply(["ok": true])
+
+    case "chatOpen":
+      if let url = URL(string: body["url"] as? String ?? ""), ["https"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url) }
+      else { NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/Ollama.app")) }
+      reply(["ok": true])
 
     case "copy":
       NSPasteboard.general.clearContents()

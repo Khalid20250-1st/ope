@@ -561,20 +561,122 @@
     try{ if(localStorage.getItem('ope-fold-' + p)) fold(p, true); }catch(e){}
   });
 
-  /* OPE Chat: it can be clicked and typed into, and it is honest that it is not
-     answering yet */
+  /* ------------------------------------------------------------ OPE Chat
+
+     It explains, and nothing else, and it says so. It runs on this Mac: Apple's
+     own model where there is one, Qwen2.5 Coder 3B through Ollama everywhere
+     else. What it is shown is the file open in the editor, or only the lines
+     selected, so the question and the code arrive together. */
+  var CHAT = {engine:'', busy:false, poll:null};
+
+  /* THE RULE IS KEPT HERE, NOT LEFT TO THE MODEL.
+
+     Told plainly never to fix anything, the 3B model was asked to fix a bug and
+     invented one, then wrote the "corrected" code for it. A small model does not
+     hold a rule under pressure. So a question asking for a change or a fix never
+     reaches it as asked: it is told to explain what the code does now, and the
+     answer says first that OPE Chat only explains. And whatever comes back, a
+     block of code is taken out before it is shown, because a person who cannot
+     read code will paste it in. */
+  var CHANGE = /\b(fix(e[sd])?|repair|debug|chang(e|ing)|edit|modify|rewrite|refactor|improve|optimi[sz]e|add|remov(e|ing)|delete|build|creat(e|ing)|implement|make (it|this|them)|updat(e|ing)|replace|convert|write (me )?(the |some |a |new )?code|give me (the )?(new |fixed |full |updated )?code|bugs?|broken|not working|does ?n[o']t work|crash(es|ing)?|errors?)\b/i;
+  var SAYS_NO = 'OPE Chat only explains code. Your AI coder can make that change. Here is what this code does now.';
+  function noCode(t){
+    return String(t || '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/```[\s\S]*$/, '')
+      .replace(/^.*\b(corrected|fixed|updated|modified|new|revised) (version of the )?code\b.*:\s*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function chatSetup(e){
+    var box = $('chatSetup'), line = $('chatEngine');
+    CHAT.engine = e.engine; line.textContent = e.label || '';
+    if(e.engine === 'apple' || e.engine === 'ollama'){ box.classList.add('hidden'); box.innerHTML = ''; stopPoll(); return; }
+    box.classList.remove('hidden');
+    if(e.engine === 'none'){
+      box.innerHTML = '<p>This Mac has no Apple Intelligence, so OPE Chat uses a free model through Ollama.</p>' +
+        '<button type="button" id="chatGet">Get Ollama, free</button><p>Then come back here and OPE downloads the model, 1.9 GB, once.</p>';
+      $('chatGet').onclick = function(){ OPEBridge.call('chatOpen', {url:'https://ollama.com/download'}); };
+      startPoll(8000);
+    } else if(e.engine === 'start-ollama'){
+      box.innerHTML = '<p>Ollama is installed but not open.</p><button type="button" id="chatStart">Open Ollama</button>';
+      $('chatStart').onclick = function(){ OPEBridge.call('chatOpen', {}); };
+      startPoll(3000);
+    } else if(e.engine === 'need-model'){
+      var p = e.pulling;
+      if(p && p.status === 'error'){
+        box.innerHTML = '<p>' + esc(p.error) + '</p><button type="button" id="chatPull">Try the download again</button>';
+      } else if(p){
+        var pct = p.total ? Math.floor(100 * (p.completed || 0) / p.total) : 0;
+        box.innerHTML = '<p>Downloading the model. ' + (p.total ? pct + '% of ' + (p.total / 1e9).toFixed(1) + ' GB' : esc(p.status)) + '</p>' +
+          '<div class="bar"><i style="width:' + pct + '%"></i></div>';
+        startPoll(1500); return;
+      } else {
+        box.innerHTML = '<p>One download, 1.9 GB, and OPE Chat works with no internet from then on.</p>' +
+          '<button type="button" id="chatPull">Download the model</button>';
+      }
+      var b = $('chatPull');
+      if(b) b.onclick = function(){ b.disabled = true; OPEBridge.call('chatPull').then(function(){ startPoll(1500); checkEngine(); }); };
+    }
+  }
+  function startPoll(ms){ stopPoll(); CHAT.poll = setTimeout(checkEngine, ms); }
+  function stopPoll(){ if(CHAT.poll){ clearTimeout(CHAT.poll); CHAT.poll = null; } }
+  function checkEngine(){
+    CHAT.poll = null;
+    return OPEBridge.call('chatEngine').then(chatSetup).catch(function(){ $('chatEngine').textContent = 'OPE Chat is not available'; });
+  }
+
+  /* plain text from the model, shown as paragraphs, with `code` kept readable */
+  function chatText(t){
+    return String(t || '').trim().split(/\n{2,}/).map(function(par){
+      return '<p>' + esc(par).replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+  }
+
+  function chatContext(){
+    var out = {project: S.root ? base(S.root) : '', version: S.version ? S.version.name : '', file: S.path || '', code: '', lines: ''};
+    if(S.editor && S.path){
+      var sel = S.editor.getSelection(), model = S.editor.getModel();
+      if(sel && !sel.isEmpty()){
+        out.code = model.getValueInRange(sel);
+        out.lines = sel.startLineNumber + ' to ' + sel.endLineNumber;
+      } else {
+        out.code = S.editor.getValue();
+      }
+    }
+    return out;
+  }
+
   $('askForm').onsubmit = function(e){
     e.preventDefault();
     var box = $('askIn'), text = box.value.trim();
     if(!text) return box.focus();
+    if(CHAT.busy) return;
     var log = $('chatLog');
-    var soon = log.querySelector('.soon'); if(soon) soon.remove();
-    log.insertAdjacentHTML('beforeend', '<div class="chat-msg me">' + esc(text) + '</div>' +
-      '<div class="chat-msg">OPE Chat is coming soon. Your project is not sent anywhere.</div>');
-    log.scrollTop = log.scrollHeight;
-    box.value = '';
+    var intro = $('chatIntro'); if(intro && CHAT.engine && (CHAT.engine === 'apple' || CHAT.engine === 'ollama')) intro.remove();
+    var ctx = chatContext();
+    var about = ctx.file ? (ctx.lines ? base(ctx.file) + ', lines ' + ctx.lines : base(ctx.file)) : 'No file open';
+    log.insertAdjacentHTML('beforeend', '<div class="chat-msg me"><span class="about">' + esc(about) + '</span>' + esc(text) + '</div>');
+    if(CHAT.engine !== 'apple' && CHAT.engine !== 'ollama'){
+      log.insertAdjacentHTML('beforeend', '<div class="chat-msg bad">OPE Chat needs a model on this Mac first. The steps are above.</div>');
+      log.scrollTop = log.scrollHeight; return;
+    }
+    var wait = document.createElement('div');
+    wait.className = 'chat-msg wait'; wait.textContent = 'Reading the code';
+    log.appendChild(wait); log.scrollTop = log.scrollHeight;
+    box.value = ''; CHAT.busy = true;
+    var change = CHANGE.test(text);
+    var asked = change ? 'Explain in plain words what this code does now. Do not suggest, write or describe any change or fix.' : text;
+    OPEBridge.call('chat', Object.assign({question: asked}, ctx)).then(function(r){
+      var answer = noCode(r.answer);
+      wait.className = 'chat-msg ai';
+      wait.innerHTML = (change ? '<p>' + esc(SAYS_NO) + '</p>' : '') + (chatText(answer) || '<p>No answer came back. Try asking again.</p>');
+    }).catch(function(err){
+      wait.className = 'chat-msg bad'; wait.textContent = err.message;
+    }).then(function(){ CHAT.busy = false; log.scrollTop = log.scrollHeight; });
   };
   $('askIn').onkeydown = function(e){ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('askForm').requestSubmit(); } };
+  checkEngine();
 
   /* ------------------------------------------------------------ start */
   $('where').onclick = pickProject;
