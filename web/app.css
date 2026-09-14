@@ -1,7 +1,7 @@
 /* OPE. Black, thin blue edges, white text, and one green that only ever means
    "this belongs to the version you picked". */
 :root{
-  --bg:#000000; --panel:#000000; --edge:#5AB0E0; --edge-dim:#2A5570;
+  --bg:#000000; --panel:#000000; --edge:#FFFFFF; --edge-dim:rgba(255,255,255,.22);
   --ink:#F2F2F2; --sub:#9AA3AB; --faint:#5E666D;
   --green:#22C55E; --green-wash:rgba(34,197,94,.12);
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Monaco,monospace;
@@ -13,16 +13,15 @@ button{font:inherit;color:inherit}
 .hidden{display:none!important}
 
 #ope{height:100vh;display:grid;gap:6px;padding:0 6px 0 0;
-  grid-template-columns:46px 176px auto 236px minmax(420px,1fr) 250px;
+  grid-template-columns:46px auto auto 236px minmax(420px,1fr) auto;
   grid-template-rows:40px 1fr 24px;
   grid-template-areas:"top top top top top top" "rail projects versions files editor chat" "status status status status status status"}
-#ope.no-chat{grid-template-columns:46px 176px auto 236px minmax(420px,1fr) 0}
-#ope.no-chat .chat{display:none}
 
 /* the title bar: room on the left for the window buttons */
 .top{grid-area:top;display:flex;align-items:center;gap:12px;padding:0 10px 0 84px;-webkit-app-region:drag}
 .top .drag{flex:1;height:100%}
-.brand{font-weight:700;letter-spacing:.2em;color:var(--edge)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.2em;color:var(--ink)}
+.brand img{height:14px;width:auto;display:block}
 .where{-webkit-app-region:no-drag;min-width:340px;max-width:560px;height:26px;padding:0 12px;
   border:1px solid var(--edge);border-radius:6px;background:#000;color:var(--sub);text-align:left;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
@@ -37,11 +36,11 @@ button{font:inherit;color:inherit}
 
 .panel{border:1px solid var(--edge);border-radius:8px;background:var(--panel);min-width:0;min-height:0;
   display:flex;flex-direction:column;overflow:hidden}
-.projects{grid-area:projects}
+.projects{grid-area:projects;width:176px}
 .versions{grid-area:versions;width:168px}
 .files{grid-area:files}
 .editor{grid-area:editor}
-.chat{grid-area:chat}
+.chat{grid-area:chat;width:250px}
 .ph{height:30px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;
   font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--sub);border-bottom:1px solid var(--edge-dim)}
 .ph .count{letter-spacing:0;font-weight:400;color:var(--faint)}
@@ -106,7 +105,7 @@ button{font:inherit;color:inherit}
 .term pre{margin:0;max-height:300px;overflow:auto;border:1px solid var(--edge-dim);border-radius:6px;padding:14px;
   color:var(--sub);white-space:pre-wrap;font:12px/1.5 var(--mono)}
 .term .recent{margin-top:26px}
-.term .recent button{display:block;background:none;border:0;color:var(--edge);cursor:pointer;padding:4px 0;text-align:left}
+.term .recent button{display:block;background:none;border:0;color:var(--sub);cursor:pointer;padding:4px 0;text-align:left}
 .term .recent button:hover{color:var(--ink)}
 
 /* OPE Chat, coming soon */
@@ -114,9 +113,6 @@ button{font:inherit;color:inherit}
   padding:20px;color:var(--sub)}
 .soon .big{margin:0 0 8px;color:var(--ink);font-size:15px;letter-spacing:.08em}
 .soon p{margin:0;max-width:220px}
-.ask{margin:10px;height:74px;border:1px solid #F08A3C;border-radius:8px;padding:10px;display:flex;
-  justify-content:space-between;align-items:flex-end;color:var(--faint);opacity:.55;cursor:not-allowed}
-.ask span{align-self:flex-start}
 
 .status{grid-area:status;display:flex;justify-content:space-between;align-items:center;padding:0 12px;
   color:var(--sub);font-size:11px}
@@ -132,8 +128,8 @@ button{font:inherit;color:inherit}
 
 /* a narrow window: the chat folds away first, then the projects stack */
 @media (max-width:1180px){
-  #ope{grid-template-columns:46px 170px auto 220px minmax(320px,1fr) 0}
-  .chat{display:none}
+  #ope{grid-template-columns:46px auto auto 220px minmax(320px,1fr) auto}
+  .projects{width:160px}
 }
 @media (max-width:860px){
   #ope{grid-template-columns:46px 1fr;grid-template-rows:40px auto auto auto minmax(360px,1fr) 24px;
@@ -146,3 +142,36 @@ button{font:inherit;color:inherit}
   .where{min-width:0;flex:1}
   .top{padding-left:84px}
 }
+
+/* FOLDING. A panel header folds its panel to a thin strip with its name
+   standing up, and the same header opens it again. The chat folds from its logo. */
+.ph.fold{cursor:pointer;user-select:none}
+.ph.fold:hover{color:var(--ink)}
+.ph .chev{font-weight:400;letter-spacing:0;color:var(--faint);margin-left:8px}
+.panel.shut{width:34px!important}
+.panel.shut .pb,.panel.shut .soon,.panel.shut .ask,.panel.shut .count{display:none}
+.panel.shut .ph{height:100%;border-bottom:0;padding:10px 0;flex-direction:column;justify-content:flex-start;gap:12px}
+.panel.shut .ph .label{writing-mode:vertical-rl;letter-spacing:.18em}
+.panel.shut .ph .chev{margin:0}
+
+/* the chat header: the logo is the fold button */
+.chat .ph{justify-content:flex-start;gap:10px}
+.logo-btn{display:grid;place-items:center;width:26px;height:20px;padding:0;border:0;background:none;cursor:pointer;opacity:.9}
+.logo-btn:hover{opacity:1}
+.logo-btn img{width:24px;height:auto;display:block}
+.panel.shut.chat .ph{align-items:center}
+
+/* OPE Chat can be clicked and typed into, and says it is coming */
+.ask{margin:10px;border:1px solid var(--edge);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;
+  opacity:1;cursor:text;height:auto;color:var(--ink)}
+.ask textarea{width:100%;min-height:52px;resize:none;border:0;outline:0;background:transparent;color:var(--ink);
+  font:12px/1.45 var(--mono)}
+.ask textarea::placeholder{color:var(--faint)}
+.ask .row2{display:flex;justify-content:space-between;align-items:center;color:var(--faint);font-size:11px}
+.ask .send{width:26px;height:24px;border:1px solid var(--edge-dim);border-radius:5px;background:#000;color:var(--ink);cursor:pointer}
+.ask .send:hover{border-color:var(--edge)}
+.chat-msg{margin:10px 10px 0;padding:8px 10px;border:1px solid var(--edge-dim);border-radius:6px;color:var(--sub);font-size:12px}
+.chat-msg.me{color:var(--ink);border-color:var(--edge)}
+.chat .log{flex:1;overflow:auto;display:flex;flex-direction:column}
+.chat .log .soon{flex:1}
+@media (max-width:1120px){ .tag{display:none!important} }

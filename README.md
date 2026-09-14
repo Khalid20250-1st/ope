@@ -1,3 +1,5 @@
+<img src="logo/png/icon-white-256.png" width="96" alt="OPE">
+
 # OPE
 
 **Out Past Engineering.** See the app your AI built, version by version.

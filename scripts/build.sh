@@ -16,7 +16,7 @@ node "$root/scripts/vendor.mjs"
 
 echo "2/5 icon"
 mkdir -p "$build/icon.iconset"
-swift "$root/mac/icon.swift" "$build/icon-1024.png"
+cp "$root/mac/AppIcon-1024.png" "$build/icon-1024.png"   # the logo pack: logo/png/icon-white-1024.png
 for s in 16 32 128 256 512; do
   sips -z $s $s "$build/icon-1024.png" --out "$build/icon.iconset/icon_${s}x${s}.png" >/dev/null
   d=$((s * 2))

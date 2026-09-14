@@ -203,6 +203,7 @@
       b.onclick = function(){
         var p = S.projects[+b.getAttribute('data-p')];
         S.project = (S.project && S.project.id === p.id) ? null : p;
+        if(S.project && $('versions').classList.contains('shut')) fold('versions', false);
         if(!S.project){ S.version = null; clearMarks(); }
         renderProjects(); renderVersions();
       };
@@ -398,6 +399,49 @@
       });
     }, 150);
   });
+
+  /* ------------------------------------------------------------ folding */
+  function fold(panel, shut){
+    var el = $(panel);
+    var now = shut == null ? !el.classList.contains('shut') : shut;
+    el.classList.toggle('shut', now);
+    var chev = el.querySelector('.chev');
+    if(chev) chev.textContent = now ? '›' : '‹';
+    try{ localStorage.setItem('ope-fold-' + panel, now ? '1' : ''); }catch(e){}
+    if(S.editor) setTimeout(function(){ S.editor.layout(); }, 30);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-fold]'), function(h){
+    h.onclick = function(){ fold(h.getAttribute('data-fold')); };
+  });
+  $('chatLogo').onclick = function(){ fold('chat'); };
+  /* a narrow window folds the chat first, then the projects, once, as it crosses */
+  var lastW = innerWidth;
+  function narrow(){
+    var w = innerWidth;
+    if(w < 1240 && lastW >= 1240) fold('chat', true);
+    if(w < 1040 && lastW >= 1040) fold('projects', true);
+    lastW = w;
+  }
+  addEventListener('resize', narrow);
+  if(innerWidth < 1240){ lastW = 9999; narrow(); }
+  ['projects', 'chat'].forEach(function(p){
+    try{ if(localStorage.getItem('ope-fold-' + p)) fold(p, true); }catch(e){}
+  });
+
+  /* OPE Chat: it can be clicked and typed into, and it is honest that it is not
+     answering yet */
+  $('askForm').onsubmit = function(e){
+    e.preventDefault();
+    var box = $('askIn'), text = box.value.trim();
+    if(!text) return box.focus();
+    var log = $('chatLog');
+    var soon = log.querySelector('.soon'); if(soon) soon.remove();
+    log.insertAdjacentHTML('beforeend', '<div class="chat-msg me">' + esc(text) + '</div>' +
+      '<div class="chat-msg">OPE Chat is coming soon. Your project is not sent anywhere.</div>');
+    log.scrollTop = log.scrollHeight;
+    box.value = '';
+  };
+  $('askIn').onkeydown = function(e){ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('askForm').requestSubmit(); } };
 
   /* ------------------------------------------------------------ start */
   $('where').onclick = pickProject;

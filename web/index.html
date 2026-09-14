@@ -10,7 +10,7 @@
 <div id="ope">
   <header class="top">
     <div class="drag"></div>
-    <div class="brand">OPE</div>
+    <div class="brand"><img src="img/mark.png" alt="">OPE</div>
     <button class="where" id="where" type="button" title="Open a project">No project open</button>
     <div class="drag"></div>
   </header>
@@ -28,12 +28,12 @@
   </nav>
 
   <section class="panel projects" id="projects" aria-label="Projects">
-    <div class="ph">PROJECTS</div>
+    <div class="ph fold" data-fold="projects" title="Fold or open"><span class="label">PROJECTS</span><span class="chev">‹</span></div>
     <div class="pb" id="projectList"></div>
   </section>
 
   <section class="panel versions hidden" id="versions" aria-label="Versions">
-    <div class="ph" id="versionsHead">VERSIONS</div>
+    <div class="ph fold" data-fold="versions" title="Fold or open"><span class="label" id="versionsHead">VERSIONS</span><span class="chev">‹</span></div>
     <div class="pb" id="versionList"></div>
   </section>
 
@@ -58,12 +58,17 @@
   </section>
 
   <aside class="panel chat" id="chat" aria-label="OPE Chat">
-    <div class="ph"><span>OPE CHAT</span></div>
-    <div class="soon">
-      <p class="big">Coming soon</p>
-      <p>Ask OPE about your project, and build the next version without leaving the app.</p>
+    <div class="ph"><button class="logo-btn" id="chatLogo" type="button" title="Fold or open OPE Chat" aria-label="Fold or open OPE Chat"><img src="img/mark.png" alt=""></button><span class="label">OPE CHAT</span></div>
+    <div class="pb log" id="chatLog">
+      <div class="soon">
+        <p class="big">Coming soon</p>
+        <p>Ask OPE about your project, and build the next version without leaving the app.</p>
+      </div>
     </div>
-    <div class="ask" aria-disabled="true"><span>Ask OPE about this project</span><b>↑</b></div>
+    <form class="ask" id="askForm">
+      <textarea id="askIn" placeholder="Ask OPE about this project" rows="3"></textarea>
+      <div class="row2"><span>OPE Chat is coming soon</span><button class="send" type="submit" aria-label="Send">↑</button></div>
+    </form>
   </aside>
 
   <footer class="status">
