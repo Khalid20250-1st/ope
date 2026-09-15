@@ -1,0 +1,42 @@
+{
+  "name": "ope",
+  "productName": "OPE",
+  "version": "1.2.0",
+  "description": "OPE, Out Past Engineering: see the app your AI built, version by version.",
+  "author": "Out Past",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "check": "electron . --self-check",
+    "dist:win": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.3.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.outpast.ope",
+    "productName": "OPE",
+    "asar": true,
+    "files": ["main.mjs", "preload.cjs", "package.json"],
+    "extraResources": [
+      { "from": "../web", "to": "ope/web", "filter": ["**/*"] },
+      { "from": "../scripts/dev-server.mjs", "to": "ope/scripts/dev-server.mjs" },
+      { "from": "../system", "to": "ope/system", "filter": ["**/*"] },
+      { "from": "../prompt", "to": "ope/prompt", "filter": ["**/*"] }
+    ],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "win": { "target": "nsis", "icon": "build/icon.png" },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OPE",
+      "artifactName": "OPE-Setup.exe"
+    }
+  }
+}

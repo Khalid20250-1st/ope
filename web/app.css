@@ -4,7 +4,7 @@
   --bg:#000000; --panel:#000000; --edge:#FFFFFF; --edge-dim:rgba(255,255,255,.22);
   --ink:#F2F2F2; --sub:#9AA3AB; --faint:#5E666D;
   --green:#22C55E; --green-wash:rgba(34,197,94,.12);
-  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Monaco,monospace;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Monaco,"Cascadia Mono",Consolas,monospace;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
@@ -17,7 +17,8 @@ button{font:inherit;color:inherit}
   grid-template-rows:40px 1fr 24px;
   grid-template-areas:"top top top top top top" "rail projects versions files editor chat" "status status status status status status"}
 
-/* the title bar: room on the left for the window buttons */
+/* the title bar: room on the left for the window buttons. Windows puts them on the right */
+html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .top{grid-area:top;display:flex;align-items:center;gap:12px;padding:0 10px 0 84px;-webkit-app-region:drag}
 .top .drag{flex:1;height:100%}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.2em;color:var(--ink)}

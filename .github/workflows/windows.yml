@@ -1,0 +1,63 @@
+# Builds OPE for Windows on a real Windows machine, proves the built app works
+# with its self-check, and puts OPE-Setup.exe on the release.
+name: Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Release tag to attach OPE-Setup.exe to (empty to only build)
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Editor files
+        run: |
+          npm ci
+          npm run vendor
+
+      - name: Build the installer
+        working-directory: desktop
+        run: |
+          npm install --no-audit --no-fund
+          npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Self-check the built app
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          $env:OPE_CHECK_LOG = "$PWD\check.log"
+          $env:OPE_SHOT = "$PWD\windows.png"
+          $p = Start-Process -FilePath "dist\win-unpacked\OPE.exe" -ArgumentList "--self-check" -Wait -PassThru
+          Get-Content check.log
+          if ($p.ExitCode -ne 0) { exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ope-windows
+          path: |
+            desktop/dist/OPE-Setup.exe
+            desktop/check.log
+            desktop/windows.png
+
+      - name: Attach to the release
+        if: ${{ inputs.release != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.release }}" desktop/dist/OPE-Setup.exe --clobber

@@ -607,7 +607,7 @@
     if(e.engine === 'apple' || e.engine === 'ollama'){ box.classList.add('hidden'); box.innerHTML = ''; stopPoll(); return; }
     box.classList.remove('hidden');
     if(e.engine === 'none'){
-      box.innerHTML = '<p>This Mac has no Apple Intelligence, so OPE Chat uses a free model through Ollama.</p>' +
+      box.innerHTML = '<p>' + (window.opeDesktop ? 'OPE Chat uses a free model through Ollama.' : 'This Mac has no Apple Intelligence, so OPE Chat uses a free model through Ollama.') + '</p>' +
         '<button type="button" id="chatGet">Get Ollama, free</button><p>Then come back here and OPE downloads the model, 1.9 GB, once.</p>';
       $('chatGet').onclick = function(){ OPEBridge.call('chatOpen', {url:'https://ollama.com/download'}); };
       startPoll(8000);
@@ -738,7 +738,7 @@
       log.scrollTop = log.scrollHeight; return;
     }
     if(CHAT.engine !== 'apple' && CHAT.engine !== 'ollama'){
-      log.insertAdjacentHTML('beforeend', '<div class="chat-msg bad">OPE Chat needs a model on this Mac first. The steps are above.</div>');
+      log.insertAdjacentHTML('beforeend', '<div class="chat-msg bad">OPE Chat needs a model on this ' + (window.opeDesktop ? 'computer' : 'Mac') + ' first. The steps are above.</div>');
       log.scrollTop = log.scrollHeight; return;
     }
     var wait = document.createElement('div');

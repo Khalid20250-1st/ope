@@ -6,13 +6,29 @@
 (function(){
   var handlers = [];
   var native = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ope);
+  /* the Windows app: the same Node bridge as the browser, plus a token, and the
+     few things only the window can do (a folder picker, the clipboard) */
+  var desktop = window.opeDesktop || null;
+  var TOKEN = desktop ? desktop.token : '';
+  if(desktop){
+    document.documentElement.classList.add('desktop', desktop.platform);
+    document.addEventListener('DOMContentLoaded', function(){
+      [].forEach.call(document.querySelectorAll('.private, #chatEngine'), function(el){
+        el.textContent = el.textContent.replace('this Mac', 'this computer');
+      });
+    });
+  }
 
   function call(cmd, args){
     var msg = Object.assign({cmd: cmd}, args || {});
-    var p = native
-      ? window.webkit.messageHandlers.ope.postMessage(msg)
-      : fetch('/bridge', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(msg)})
-          .then(function(r){ return r.json(); });
+    var http = function(m){
+      return fetch('/bridge', {method:'POST', headers:{'content-type':'application/json', 'x-ope-token': TOKEN}, body: JSON.stringify(m)})
+        .then(function(r){ return r.json(); });
+    };
+    var p = native ? window.webkit.messageHandlers.ope.postMessage(msg)
+      : desktop && (cmd === 'pick' || cmd === 'copy' || cmd === 'chatOpen')
+        ? desktop.call(msg).then(function(r){ return cmd === 'pick' && r.path ? http({cmd:'open', path:r.path}) : r; })
+        : http(msg);
     return Promise.resolve(p).then(function(out){
       if(out && out.error) throw new Error(out.error);
       return out || {};
@@ -23,7 +39,7 @@
   function onChange(fn){ handlers.push(fn); }
   function emit(ev){ handlers.forEach(function(fn){ try{ fn(ev || {}); }catch(e){ console.error(e); } }); }
   if(!native && window.EventSource){
-    var es = new EventSource('/events');
+    var es = new EventSource('/events' + (TOKEN ? '?t=' + encodeURIComponent(TOKEN) : ''));
     es.onmessage = function(m){ try{ emit(JSON.parse(m.data)); }catch(e){} };
   }
 

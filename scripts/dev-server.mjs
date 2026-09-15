@@ -8,7 +8,8 @@
 import http from 'node:http';
 import { readFile, writeFile, stat, readdir } from 'node:fs/promises';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, watch, existsSync, statSync } from 'node:fs';
-import { join, resolve, relative, extname, dirname, sep } from 'node:path';
+import { join, resolve, relative, extname, dirname, basename, sep } from 'node:path';
+import { homedir, platform } from 'node:os';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -16,10 +17,16 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const WEB = join(HERE, '..', 'web');
 const PROMPT = join(HERE, '..', 'prompt', 'OPE-PROMPT.md');
 const PORT = Number(process.env.PORT || 8790);
+/* the Windows app runs this same file inside Electron. It sets OPE_TOKEN, and then
+   every bridge call must carry it, so no web page open in a browser can reach the
+   bridge on 127.0.0.1 */
+const TOKEN = process.env.OPE_TOKEN || '';
+const HOME = homedir();
+const COMPUTER = platform() === 'darwin' ? 'Mac' : 'computer';
 
 let root = process.env.OPE_ROOT || '';
 /* the library of project folders, kept on this machine only */
-const LIB = join(process.env.HOME, '.config', 'ope', 'library.json');
+const LIB = join(HOME, '.config', 'ope', 'library.json');
 function library(){ try { return JSON.parse(readFileSync(LIB, 'utf8')); } catch { return []; } }
 function saveLibrary(items){ mkdirSync(dirname(LIB), { recursive: true }); writeFileSync(LIB, JSON.stringify(items, null, 2)); return items; }
 const recent = [];
@@ -57,7 +64,7 @@ async function walk(dir, out, depth){
     if (SKIP.has(it.name) || it.name === '.DS_Store') continue;
     const full = join(dir, it.name);
     if (it.isDirectory()) await walk(full, out, depth + 1);
-    else if (it.isFile()) out.push(relative(root, full));
+    else if (it.isFile()) out.push(relative(root, full).split(sep).join('/'));
   }
 }
 
@@ -68,8 +75,9 @@ function watchRoot(){
   watcher = watch(root, { recursive: true }, (_e, name) => {
     if (!name) return;
     const n = String(name);
-    if (/(^|\/)(node_modules|\.next|dist|build)(\/|$)/.test(n)) return;
-    if (/^\.git\//.test(n) && !/^\.git\/(refs|HEAD|index|packed-refs)/.test(n)) return;
+    const n2 = n.replace(/\\/g, '/');
+    if (/(^|\/)(node_modules|\.next|dist|build)(\/|$)/.test(n2)) return;
+    if (/^\.git\//.test(n2) && !/^\.git\/(refs|HEAD|index|packed-refs)/.test(n2)) return;
     seen.add(n);
     clearTimeout(timer);
     timer = setTimeout(() => {
@@ -110,14 +118,15 @@ function chatPrompt(b, budget){
 }
 async function chatEngine(){
   const has = await ollamaHasModel();
-  if (has === true) return { engine: 'ollama', label: 'Qwen2.5 Coder 3B, on this Mac' };
+  if (has === true) return { engine: 'ollama', label: 'Qwen2.5 Coder 3B, on this ' + COMPUTER };
   if (has === false) return Object.assign({ engine: 'need-model', label: 'Needs a 1.9 GB download' }, pulling ? { pulling } : {});
-  const installed = ['/usr/local/bin/ollama', '/opt/homebrew/bin/ollama', '/Applications/Ollama.app'].some(existsSync);
+  const installed = ['/usr/local/bin/ollama', '/opt/homebrew/bin/ollama', '/Applications/Ollama.app',
+    join(process.env.LOCALAPPDATA || '', 'Programs', 'Ollama', 'ollama.exe')].some(existsSync);
   return installed ? { engine: 'start-ollama', label: 'Open Ollama to use OPE Chat' }
                    : { engine: 'none', label: 'Needs Ollama, free, from ollama.com' };
 }
 async function chatAsk(b){
-  if (await ollamaHasModel() !== true) throw new Error('OPE Chat has no model on this Mac yet.');
+  if (await ollamaHasModel() !== true) throw new Error('OPE Chat has no model on this ' + COMPUTER + ' yet.');
   const r = await fetch(OLLAMA + '/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ model: CHAT_MODEL, stream: false, options: { num_ctx: 8192, temperature: 0.2 },
       messages: [{ role: 'system', content: CHAT_RULES }, { role: 'user', content: chatPrompt(b, 18000) }] }) });
@@ -148,15 +157,15 @@ function chatPull(){
 
 async function command(b){
   switch (b.cmd) {
-    case 'hello': return { kind: 'dev', root, recent, library: library() };
+    case 'hello': return { kind: TOKEN ? 'desktop' : 'dev', root, recent, library: library() };
     case 'open': {
-      const p = resolve(String(b.path || '').replace(/^~(?=$|\/)/, process.env.HOME));
+      const p = resolve(String(b.path || '').replace(/^~(?=$|[\/\\])/, HOME));
       if (!existsSync(p) || !statSync(p).isDirectory()) throw new Error('That folder does not exist.');
       root = p;
       const i = recent.indexOf(p); if (i >= 0) recent.splice(i, 1); recent.unshift(p); recent.length = Math.min(recent.length, 8);
       watchRoot();
       const lib = library();
-      if (!lib.some(x => x.path === p)) { lib.push({ path: p, name: p.split('/').pop() }); saveLibrary(lib); }
+      if (!lib.some(x => x.path === p)) { lib.push({ path: p, name: basename(p) }); saveLibrary(lib); }
       return { root, library: lib };
     }
     case 'pick': return { root: '', manual: true };
@@ -210,6 +219,10 @@ async function command(b){
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  if (TOKEN && (url.pathname === '/events' || url.pathname === '/bridge')
+      && req.headers['x-ope-token'] !== TOKEN && url.searchParams.get('t') !== TOKEN) {
+    res.writeHead(403); return res.end();
+  }
   if (url.pathname === '/events') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
     res.write(': hi\n\n'); listeners.add(res); req.on('close', () => listeners.delete(res)); return;
@@ -227,4 +240,4 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
     res.end(data); }
   catch { res.writeHead(404); res.end('not found'); }
-}).listen(PORT, () => { if (root) watchRoot(); console.log(`OPE dev on http://localhost:${PORT}`); });
+}).listen(PORT, '127.0.0.1', () => { if (root) watchRoot(); console.log(`OPE dev on http://localhost:${PORT}`); });
