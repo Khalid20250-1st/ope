@@ -11,6 +11,7 @@
 import Cocoa
 import WebKit
 import CoreServices
+import Vision
 #if arch(arm64) && canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -344,6 +345,40 @@ enum Chat {
   }
 }
 
+// ---------------------------------------------------------------- reading a picture
+
+/* THE WORDS IN A PICTURE, READ ON THIS MAC.
+
+   Seeing a picture takes a model most Macs cannot run. Reading the words in one
+   does not: Apple's Vision text reader has been on every Mac since 2019, Intel
+   ones too, with nothing to download. So a screenshot of an error, a note or a
+   message becomes text, and the chat answers it with whichever model it has. */
+enum Picture {
+  static func read(_ dataURL: String) throws -> [String: Any] {
+    let b64 = dataURL.components(separatedBy: ",").last ?? ""
+    guard let data = Data(base64Encoded: b64, options: .ignoreUnknownCharacters),
+          let src = CGImageSourceCreateWithData(data as CFData, nil),
+          let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+      throw OPEError("That picture could not be opened.")
+    }
+    let request = VNRecognizeTextRequest()
+    request.recognitionLevel = .accurate
+    request.usesLanguageCorrection = true
+    request.automaticallyDetectsLanguage = true
+    try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
+    /* top to bottom, then left to right, so a screenshot reads in the order a person reads it */
+    let rows = (request.results ?? []).compactMap { o -> (CGRect, String)? in
+      guard let t = o.topCandidates(1).first?.string else { return nil }
+      return (o.boundingBox, t)
+    }.sorted { a, b in
+      abs(a.0.midY - b.0.midY) > 0.01 ? a.0.midY > b.0.midY : a.0.minX < b.0.minX
+    }
+    let text = rows.map { $0.1 }.joined(separator: "\n")
+    return ["text": text, "words": text.split(whereSeparator: { $0 == " " || $0 == "\n" }).count,
+            "width": image.width, "height": image.height]
+  }
+}
+
 // ---------------------------------------------------------------- the bridge
 
 final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
@@ -427,6 +462,14 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
 
     case "chatPull":
       Chat.pull(); reply(["ok": true])
+
+    case "readImage":
+      let data = body["data"] as? String ?? ""
+      DispatchQueue.global(qos: .userInitiated).async {
+        do { let r = try Picture.read(data); DispatchQueue.main.async { reply(r) } }
+        catch let e as OPEError { DispatchQueue.main.async { fail(e.message) } }
+        catch { DispatchQueue.main.async { fail("The words in that picture could not be read.") } }
+      }
 
     case "chatOpen":
       if let url = URL(string: body["url"] as? String ?? ""), ["https"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url) }

@@ -175,6 +175,8 @@ async function command(b){
     case 'chatEngine': return chatEngine();
     case 'chat': return chatAsk(b);
     case 'chatPull': chatPull(); return { ok: true };
+    /* reading a picture uses Apple's Vision, which only the Mac app can reach */
+    case 'readImage': throw new Error('Reading pictures works in the Mac app, not in the browser.');
     case 'chatOpen': return { ok: false };
     case 'copy': return { ok: false };
     case 'log': console.error('OPE: ' + b.text); return { ok: true };

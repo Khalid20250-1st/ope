@@ -647,16 +647,72 @@
     return out;
   }
 
+  /* ------------------------------------------------------------ a picture in the chat
+
+     The words in it are read on this Mac by Apple's Vision and go to the model
+     with the question. Nothing is sent anywhere. It reads words, not what the
+     picture looks like, and it says so when there are none. */
+  var PIC = null;   // {url, text, words}
+  function clearPic(){ PIC = null; $('askPic').classList.add('hidden'); $('askPicImg').removeAttribute('src'); $('askFile').value = ''; }
+  function takePic(file){
+    if(!file || !/^image\//.test(file.type)) return;
+    if(file.size > 20 * 1024 * 1024){ status('That picture is over 20 MB.'); return; }
+    var fr = new FileReader();
+    fr.onload = function(){
+      var url = fr.result;
+      $('askPicImg').src = url; $('askPicText').textContent = 'Reading the words in the picture';
+      $('askPic').classList.remove('hidden');
+      PIC = {url: url, text: '', words: 0, reading: true};
+      var mine = PIC;
+      OPEBridge.call('readImage', {data: url}).then(function(r){
+        if(PIC !== mine) return;
+        PIC.text = String(r.text || '').trim(); PIC.words = r.words || 0; PIC.reading = false;
+        $('askPicText').textContent = PIC.words ? PIC.words + ' words read from the picture' : 'No words found in this picture';
+      }).catch(function(err){
+        if(PIC !== mine) return;
+        PIC.reading = false; $('askPicText').textContent = err.message;
+      });
+    };
+    fr.readAsDataURL(file);
+  }
+  $('askAttach').onclick = function(){ $('askFile').click(); };
+  $('askFile').onchange = function(){ takePic(this.files && this.files[0]); };
+  $('askPicX').onclick = clearPic;
+  $('askIn').addEventListener('paste', function(e){
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    for(var i = 0; i < items.length; i++){
+      if(items[i].kind === 'file' && /^image\//.test(items[i].type)){ e.preventDefault(); takePic(items[i].getAsFile()); return; }
+    }
+  });
+  (function(){
+    var form = $('askForm');
+    form.addEventListener('dragover', function(e){ e.preventDefault(); form.classList.add('drop'); });
+    form.addEventListener('dragleave', function(){ form.classList.remove('drop'); });
+    form.addEventListener('drop', function(e){
+      e.preventDefault(); form.classList.remove('drop');
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if(f) takePic(f);
+    });
+  })();
+
   $('askForm').onsubmit = function(e){
     e.preventDefault();
     var box = $('askIn'), text = box.value.trim();
-    if(!text) return box.focus();
+    var pic = PIC;
+    if(pic && pic.reading) return status('Still reading the words in the picture.');
+    if(!text && !pic) return box.focus();
     if(CHAT.busy) return;
     var log = $('chatLog');
     var intro = $('chatIntro'); if(intro && CHAT.engine && (CHAT.engine === 'apple' || CHAT.engine === 'ollama')) intro.remove();
     var ctx = chatContext();
     var about = ctx.file ? (ctx.lines ? base(ctx.file) + ', lines ' + ctx.lines : base(ctx.file)) : 'No file open';
-    log.insertAdjacentHTML('beforeend', '<div class="chat-msg me"><span class="about">' + esc(about) + '</span>' + esc(text) + '</div>');
+    log.insertAdjacentHTML('beforeend', '<div class="chat-msg me"><span class="about">' + esc(about) + '</span>' +
+      (pic ? '<img class="shot" alt="" src="' + esc(pic.url) + '">' : '') + esc(text) + '</div>');
+    if(pic && !pic.text){
+      clearPic(); box.value = '';
+      log.insertAdjacentHTML('beforeend', '<div class="chat-msg bad">There are no words in that picture for OPE to read. OPE reads the words in a picture, not what it looks like.</div>');
+      log.scrollTop = log.scrollHeight; return;
+    }
     if(CHAT.engine !== 'apple' && CHAT.engine !== 'ollama'){
       log.insertAdjacentHTML('beforeend', '<div class="chat-msg bad">OPE Chat needs a model on this Mac first. The steps are above.</div>');
       log.scrollTop = log.scrollHeight; return;
@@ -665,13 +721,24 @@
     wait.className = 'chat-msg wait'; wait.textContent = 'Reading the code';
     log.appendChild(wait); log.scrollTop = log.scrollHeight;
     box.value = ''; CHAT.busy = true;
+    var said = text + (pic ? (text ? '\n\n' : '') + pic.text : '');
+    /* the gate looks at what they typed. A screenshot of an error is full of the
+       word error, and treating that as a request to fix would throw the picture
+       away. The model still never writes code, and any code it writes is cut. */
     var change = CHANGE.test(text);
     var asked = change ? 'Explain in plain words what this code does now. Do not suggest, write or describe any change or fix.' : text;
+    /* with nothing typed, the small models only answered the picture when told
+       plainly what to do with it: answer what it asks, explain what went wrong */
+    if(pic){
+      var ask = change ? asked : (text || 'Answer any question in it, and explain anything in it that went wrong, in plain words.');
+      asked = 'Here is text from a picture they added:\n' + pic.text + '\n\n' + ask;
+    }
+    clearPic();
     OPEBridge.call('chat', Object.assign({question: asked}, ctx)).then(function(r){
       var answer = noCode(r.answer);
       /* Apple's model opens every answer with Hi, because every question is a
          fresh conversation to it. Only a greeting gets one back. */
-      if(!/^\s*(hi|hey|hello|yo|sup|good (morning|afternoon|evening))\b/i.test(text))
+      if(!/^\s*(hi|hey|hello|yo|sup|good (morning|afternoon|evening))\b/i.test(said))
         answer = answer.replace(/^\s*(hi|hey|hello)( there)?[!.,]?\s*/i, '');
       wait.className = 'chat-msg ai';
       wait.innerHTML = (change ? '<p>' + esc(SAYS_NO) + '</p>' : '') + (chatText(answer) || '<p>No answer came back. Try asking again.</p>');

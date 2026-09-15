@@ -170,6 +170,15 @@ button{font:inherit;color:inherit}
 .ask .row2{display:flex;justify-content:space-between;align-items:center;color:var(--faint);font-size:11px}
 .ask .send{width:26px;height:24px;border:1px solid var(--edge-dim);border-radius:5px;background:#000;color:var(--ink);cursor:pointer}
 .ask .send:hover{border-color:var(--edge)}
+.ask .btns{display:flex;gap:6px}
+.ask .attach{width:26px;height:24px;border:1px solid var(--edge-dim);border-radius:5px;background:#000;color:var(--ink);cursor:pointer;font-size:14px;line-height:1}
+.ask .attach:hover{border-color:var(--edge)}
+.ask.drop{border-color:#22c55e}
+.ask .pic{display:flex;align-items:center;gap:8px;padding:4px;border:1px solid var(--edge-dim);border-radius:6px;font-size:11px;color:var(--sub)}
+.ask .pic img{width:34px;height:34px;object-fit:cover;border-radius:4px;flex:0 0 auto}
+.ask .pic span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ask .pic button{border:0;background:none;color:var(--faint);cursor:pointer;font-size:15px;padding:0 4px}
+.chat-msg .shot{display:block;max-width:100%;max-height:120px;margin:0 0 6px;border-radius:4px}
 .chat-msg{margin:10px 10px 0;padding:8px 10px;border:1px solid var(--edge-dim);border-radius:6px;color:var(--sub);font-size:12px}
 .chat-msg.me{color:var(--ink);border-color:var(--edge)}
 .chat-msg.ai{color:var(--ink);line-height:1.55;white-space:normal}

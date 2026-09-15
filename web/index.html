@@ -68,8 +68,10 @@
       </div>
     </div>
     <form class="ask" id="askForm">
+      <div class="pic hidden" id="askPic"><img id="askPicImg" alt=""><span id="askPicText"></span><button type="button" id="askPicX" aria-label="Remove the picture">×</button></div>
       <textarea id="askIn" placeholder="What does this file do?" rows="3"></textarea>
-      <div class="row2"><span id="chatEngine">Looking for a model on this Mac</span><button class="send" type="submit" aria-label="Send">↑</button></div>
+      <input type="file" id="askFile" accept="image/*" hidden>
+      <div class="row2"><span id="chatEngine">Looking for a model on this Mac</span><span class="btns"><button class="attach" type="button" id="askAttach" title="Add a picture. OPE reads the words in it." aria-label="Add a picture">⊕</button><button class="send" type="submit" aria-label="Send">↑</button></span></div>
     </form>
   </aside>
 

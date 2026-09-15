@@ -25,8 +25,8 @@ done
 iconutil -c icns "$build/icon.iconset" -o "$build/AppIcon.icns"
 
 echo "3/5 binary"
-swiftc -O -target arm64-apple-macos13 "$root/mac/main.swift" -o "$build/OPE-arm64" -framework Cocoa -framework WebKit -framework CoreServices
-swiftc -O -target x86_64-apple-macos13 "$root/mac/main.swift" -o "$build/OPE-x86_64" -framework Cocoa -framework WebKit -framework CoreServices
+swiftc -O -target arm64-apple-macos13 "$root/mac/main.swift" -o "$build/OPE-arm64" -framework Cocoa -framework WebKit -framework CoreServices -framework Vision
+swiftc -O -target x86_64-apple-macos13 "$root/mac/main.swift" -o "$build/OPE-x86_64" -framework Cocoa -framework WebKit -framework CoreServices -framework Vision
 lipo -create "$build/OPE-arm64" "$build/OPE-x86_64" -output "$build/OPE"
 
 echo "4/5 bundle"
