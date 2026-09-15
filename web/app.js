@@ -11,7 +11,7 @@
            editor:null, monaco:null, deco:[], promptText:'', recent:[], busy:false};
   var $ = function(id){ return document.getElementById(id); };
   function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-  function base(p){ return String(p).split('/').pop(); }
+  function base(p){ return String(p).split(/[\/\\]/).pop(); }
   function status(left, right){ if(left != null) $('statusLeft').textContent = left; if(right != null) $('statusRight').textContent = right; }
 
   /* ------------------------------------------------------------ the editor */
