@@ -681,9 +681,20 @@
   $('askIn').addEventListener('paste', function(e){
     var items = (e.clipboardData && e.clipboardData.items) || [];
     for(var i = 0; i < items.length; i++){
-      if(items[i].kind === 'file' && /^image\//.test(items[i].type)){ e.preventDefault(); takePic(items[i].getAsFile()); return; }
+      if(items[i].kind === 'file' && /^image\//.test(items[i].type)){
+        e.preventDefault(); takePic(items[i].getAsFile());
+        /* the Mac app's web view still dropped a stray mark into the box on an
+           image paste, which then went to the model as the question. Whatever
+           was typed before the paste is put back. */
+        var box = this, keep = box.value, at = box.selectionStart;
+        setTimeout(function(){ if(box.value !== keep){ box.value = keep; try{ box.setSelectionRange(at, at); }catch(_){} } }, 0);
+        return;
+      }
     }
   });
+  /* a picture dropped anywhere else must not replace the whole app with the image */
+  document.addEventListener('dragover', function(e){ e.preventDefault(); });
+  document.addEventListener('drop', function(e){ if(!e.target.closest || !e.target.closest('#askForm')) e.preventDefault(); });
   (function(){
     var form = $('askForm');
     form.addEventListener('dragover', function(e){ e.preventDefault(); form.classList.add('drop'); });
@@ -697,7 +708,7 @@
 
   $('askForm').onsubmit = function(e){
     e.preventDefault();
-    var box = $('askIn'), text = box.value.trim();
+    var box = $('askIn'), text = box.value.replace(/[\uFFFC\u200B]/g, '').trim();
     var pic = PIC;
     if(pic && pic.reading) return status('Still reading the words in the picture.');
     if(!text && !pic) return box.focus();
@@ -730,7 +741,7 @@
     /* with nothing typed, the small models only answered the picture when told
        plainly what to do with it: answer what it asks, explain what went wrong */
     if(pic){
-      var ask = change ? asked : (text || 'Answer any question in it, and explain anything in it that went wrong, in plain words.');
+      var ask = change ? asked : (text || 'If it asks a question, reply with the answer itself first, not the question. Then explain anything in it that went wrong, in plain words.');
       asked = 'Here is text from a picture they added:\n' + pic.text + '\n\n' + ask;
     }
     clearPic();

@@ -12,6 +12,7 @@ import Cocoa
 import WebKit
 import CoreServices
 import Vision
+import UniformTypeIdentifiers
 #if arch(arm64) && canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -489,7 +490,7 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
 
 // ---------------------------------------------------------------- the window
 
-final class App: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate {
+final class App: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
   var window: NSWindow!
   var web: WKWebView!
   let project = Project()
@@ -524,6 +525,7 @@ final class App: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigation
     web = WKWebView(frame: .zero, configuration: cfg)
     web.setValue(false, forKey: "drawsBackground")
     web.navigationDelegate = self
+    web.uiDelegate = self
     if #available(macOS 13.3, *) { web.isInspectable = true }
     window.contentView = web
     bridge.window = window
@@ -541,6 +543,22 @@ final class App: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigation
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { true }
+
+  /* A PAGE'S FILE PICKER DOES NOTHING IN A WEB VIEW UNLESS THE APP OPENS IT.
+
+     The + in OPE Chat is an ordinary file input. Safari answers it with a panel;
+     a WKWebView asks its owner, and with no answer the press did nothing at all. */
+  func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+               initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+    let panel = NSOpenPanel()
+    panel.canChooseFiles = true
+    panel.canChooseDirectories = false
+    panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+    panel.allowedContentTypes = [.image]
+    panel.message = "Pick a picture. OPE reads the words in it."
+    panel.prompt = "Add"
+    panel.beginSheetModal(for: window) { r in completionHandler(r == .OK ? panel.urls : nil) }
+  }
 
   /* Copy, paste and undo only reach the code view if the menu has them */
   func menus() {
