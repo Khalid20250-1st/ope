@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 
 const src = process.argv[2];
 const seeded = process.argv[3] === 'seeded';
+const messy = process.argv.includes('messy');   // the messy test never asks for priority
 const dir = mkdtempSync(join(tmpdir(), 'ope-check-'));
 cpSync(src, dir, { recursive: true, filter: p => !p.includes('/.git/') && !p.includes('/node_modules/') });
 const port = 4100 + Math.floor(Math.random() * 800);
@@ -57,10 +58,12 @@ if (up) {
   const tf = (await req('GET', '/tasks?tag=work')).json || [];
   check('GET /tasks?tag= filters by tag', tf.length >= 1 && tf.every(t => (t.tags || []).includes('work')));
 
-  check('new tasks default to priority 2', nd.json && nd.json.priority === 2);
-  const p1 = await req('POST', '/tasks', { title: 'Check high', priority: 1 });
-  check('priority 1 can be set', p1.json && p1.json.priority === 1);
-  check('priority 5 is rejected with 400', (await req('POST', '/tasks', { title: 'Check bad', priority: 5 })).status === 400);
+  if (!messy) {
+    check('new tasks default to priority 2', nd.json && nd.json.priority === 2);
+    const p1 = await req('POST', '/tasks', { title: 'Check high', priority: 1 });
+    check('priority 1 can be set', p1.json && p1.json.priority === 1);
+    check('priority 5 is rejected with 400', (await req('POST', '/tasks', { title: 'Check bad', priority: 5 })).status === 400);
+  }
 
   const list = await all();
   const s = await req('GET', '/stats');

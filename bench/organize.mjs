@@ -4,6 +4,7 @@ import { join, extname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const dir = process.argv[2];
+const messy = process.argv[3] === 'messy';   // fewer changes, so fewer checkpoints expected
 const files = [];
 (function walk(d){ for (const f of readdirSync(d)) {
   if (['.git', 'node_modules', 'ope-system'].includes(f)) continue;
@@ -22,8 +23,8 @@ const leftovers = files.filter(f => /(\.bak|\.old|\.orig|~|copy|backup|\.tmp)$/i
 const history = ['PROJECTS.md', 'CHANGELOG.md', 'README.md'].find(f => existsSync(join(dir, f)));
 const items = [
   { name: 'saved with git', ok: isRepo },
-  { name: 'a checkpoint for each change (8 or more commits)', ok: commits >= 8 },
-  { name: 'numbered version tags', ok: tags.length >= 4 },
+  { name: messy ? 'a checkpoint for each change (3 or more commits)' : 'a checkpoint for each change (8 or more commits)', ok: commits >= (messy ? 3 : 8) },
+  { name: 'numbered version tags', ok: tags.length >= (messy ? 2 : 4) },
   { name: 'a written list of what each version did', ok: !!history && /1\.1|due|tags|priority/i.test(readFileSync(join(dir, history), 'utf8')) },
   { name: 'every source file says what it is for (80% or more)', ok: source.length > 0 && commented.length / source.length >= 0.8 },
   { name: 'no single file over 400 lines', ok: largest <= 400 },
