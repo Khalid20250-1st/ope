@@ -82,12 +82,13 @@
     $('welcome').innerHTML =
       '<div class="term">'+
         '<h1>OPE</h1><p class="under">Out Past Engineering. See the app your AI built, version by version.</p>'+
-        '<p class="line"><i>&gt;</i> step 1 <em>copy the OPE prompt and give it to your AI coder, once per project</em></p>'+
+        '<p class="line"><i>&gt;</i> step 1 <em>open your project and press Add OPE to this project. Your AI coder reads it by itself (or copy the prompt for tools that do not read files)</em></p>'+
         '<p class="line"><i>&gt;</i> step 2 <em>tell it: "project 1.0, build me ..."</em></p>'+
         '<p class="line"><i>&gt;</i> step 3 <em>open the project folder here and pick a version</em></p>'+
         '<div class="acts2">'+
           '<button class="btn big go" id="copyPrompt" type="button">Copy the prompt</button>'+
           '<button class="btn big" id="openBtn" type="button">'+(S.root ? 'Open another project' : 'Open a project')+'</button>'+
+          (S.root ? '<button class="btn big go" id="installBtn" type="button">Add OPE to this project</button>' : '')+
         '</div>'+
         '<pre id="promptText">'+esc(unwrap(S.promptText) || 'Loading the prompt...')+'</pre>'+
         (recent.length ? '<div class="recent"><p class="line"><em>recent</em></p>'+
@@ -95,6 +96,7 @@
       '</div>';
     $('copyPrompt').onclick = copyPrompt;
     $('openBtn').onclick = pickProject;
+    if($('installBtn')) $('installBtn').onclick = installSystem;
     Array.prototype.forEach.call(document.querySelectorAll('[data-recent]'), function(b){
       b.onclick = function(){ openRoot(b.getAttribute('data-recent')); };
     });
@@ -114,6 +116,17 @@
       else out.push(l);
     });
     return out.join('\n');
+  }
+
+  /* the rules file every AI coder reads by itself, and the full system as a
+     folder it opens only when the work needs it */
+  function installSystem(){
+    var b = $('installBtn'); b.disabled = true; b.textContent = 'Adding...';
+    OPEBridge.call('install').then(function(r){
+      b.textContent = 'Added to ' + base(S.root);
+      var line = (r.added.length ? 'Added ' + r.added.length + ' files' : 'Already added') + (r.kept.length ? ', kept ' + r.kept.length + ' you already had' : '');
+      return reload().then(function(){ status(line); });
+    }).catch(function(e){ b.disabled = false; b.textContent = 'Add OPE to this project'; status(e.message); });
   }
 
   function copyPrompt(){

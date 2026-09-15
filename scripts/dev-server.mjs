@@ -7,7 +7,7 @@
 // arguments and the same answer.
 import http from 'node:http';
 import { readFile, writeFile, stat, readdir } from 'node:fs/promises';
-import { readFileSync, writeFileSync, mkdirSync, watch, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, watch, existsSync, statSync } from 'node:fs';
 import { join, resolve, relative, extname, dirname, sep } from 'node:path';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -179,6 +179,29 @@ async function command(b){
     case 'readImage': throw new Error('Reading pictures works in the Mac app, not in the browser.');
     case 'chatOpen': return { ok: false };
     case 'copy': return { ok: false };
+    case 'install': {
+      if (!root) throw new Error('Open a project first.');
+      const SYS = join(HERE, '..', 'system'), added = [], kept = [];
+      const agentsSrc = readFileSync(join(SYS, 'AGENTS.md'), 'utf8');
+      const agents = join(root, 'AGENTS.md');
+      if (existsSync(agents)) { const have = readFileSync(agents, 'utf8');
+        if (have.includes('(OPE)')) kept.push('AGENTS.md'); else { writeFileSync(agents, have + '\n\n' + agentsSrc); added.push('AGENTS.md (added to yours)'); } }
+      else { writeFileSync(agents, agentsSrc); added.push('AGENTS.md'); }
+      const claude = join(root, 'CLAUDE.md');
+      if (existsSync(claude)) { const have = readFileSync(claude, 'utf8');
+        if (have.includes('@AGENTS.md')) kept.push('CLAUDE.md'); else { writeFileSync(claude, have + '\n\n@AGENTS.md\n'); added.push('CLAUDE.md (added to yours)'); } }
+      else { writeFileSync(claude, '@AGENTS.md\n'); added.push('CLAUDE.md'); }
+      const walkSys = d => { for (const it of readdirSync(d, { withFileTypes: true })) {
+        const p = join(d, it.name), rel = relative(SYS, p);
+        if (it.isDirectory()) { walkSys(p); continue; }
+        if (rel === 'AGENTS.md' || rel === 'CLAUDE.md') continue;
+        const to = join(root, 'ope-system', rel);
+        if (existsSync(to)) { kept.push('ope-system/' + rel); continue; }
+        mkdirSync(dirname(to), { recursive: true }); writeFileSync(to, readFileSync(p)); added.push('ope-system/' + rel);
+      } };
+      walkSys(SYS);
+      return { added, kept };
+    }
     case 'log': console.error('OPE: ' + b.text); return { ok: true };
     case 'libraryRemove': return { items: saveLibrary(library().filter(x => x.path !== String(b.path))) };
     default: throw new Error('Unknown command ' + b.cmd);

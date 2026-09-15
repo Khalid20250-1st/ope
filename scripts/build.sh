@@ -36,6 +36,7 @@ cp "$build/OPE" "$app/Contents/MacOS/OPE"
 cp "$build/AppIcon.icns" "$app/Contents/Resources/AppIcon.icns"
 cp -R "$root/web" "$app/Contents/Resources/web"
 cp "$root/prompt/OPE-PROMPT.md" "$app/Contents/Resources/OPE-PROMPT.md"
+cp -R "$root/system" "$app/Contents/Resources/system"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

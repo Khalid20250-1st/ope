@@ -380,6 +380,43 @@ enum Picture {
   }
 }
 
+/* ADD OPE TO THIS PROJECT. The short rules file every AI coder reads, and the
+   full system as a folder it opens only when needed. Nothing the person already
+   wrote is overwritten: an existing AGENTS.md or CLAUDE.md is added to, and a
+   file already in ope-system is left as it is. Also reachable as
+   `OPE --install <folder>`, so it can be scripted and checked. */
+func installSystem(into root: URL) -> [String: [String]] {
+    let fm = FileManager.default
+    let src = Bundle.main.resourceURL!.appendingPathComponent("system")
+    var added: [String] = [], kept: [String] = []
+    let agentsSrc = (try? String(contentsOf: src.appendingPathComponent("AGENTS.md"), encoding: .utf8)) ?? ""
+    let agents = root.appendingPathComponent("AGENTS.md")
+    if let have = try? String(contentsOf: agents, encoding: .utf8) {
+      if have.contains("(OPE)") { kept.append("AGENTS.md") }
+      else { try? (have + "\n\n" + agentsSrc).write(to: agents, atomically: true, encoding: .utf8); added.append("AGENTS.md (added to yours)") }
+    } else { try? agentsSrc.write(to: agents, atomically: true, encoding: .utf8); added.append("AGENTS.md") }
+    let claude = root.appendingPathComponent("CLAUDE.md")
+    if let have = try? String(contentsOf: claude, encoding: .utf8) {
+      if have.contains("@AGENTS.md") { kept.append("CLAUDE.md") }
+      else { try? (have + "\n\n@AGENTS.md\n").write(to: claude, atomically: true, encoding: .utf8); added.append("CLAUDE.md (added to yours)") }
+    } else { try? "@AGENTS.md\n".write(to: claude, atomically: true, encoding: .utf8); added.append("CLAUDE.md") }
+    let dest = root.appendingPathComponent("ope-system")
+    if let e = fm.enumerator(at: src, includingPropertiesForKeys: [.isDirectoryKey]) {
+      for case let u as URL in e {
+        let rel = String(u.standardizedFileURL.path.dropFirst(src.standardizedFileURL.path.count + 1))
+        if rel == "AGENTS.md" || rel == "CLAUDE.md" { continue }
+        let to = dest.appendingPathComponent(rel)
+        if (try? u.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+          try? fm.createDirectory(at: to, withIntermediateDirectories: true); continue
+        }
+        if fm.fileExists(atPath: to.path) { kept.append("ope-system/" + rel); continue }
+        try? fm.createDirectory(at: to.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if (try? fm.copyItem(at: u, to: to)) != nil { added.append("ope-system/" + rel) }
+      }
+    }
+    return ["added": added, "kept": kept]
+}
+
 // ---------------------------------------------------------------- the bridge
 
 final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
@@ -476,6 +513,10 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
       if let url = URL(string: body["url"] as? String ?? ""), ["https"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url) }
       else { NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/Ollama.app")) }
       reply(["ok": true])
+
+    case "install":
+      guard let root = project.root else { fail("Open a project first."); return }
+      reply(installSystem(into: root))
 
     case "copy":
       NSPasteboard.general.clearContents()
@@ -591,6 +632,12 @@ final class App: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigation
     NSApp.mainMenu = main
     NSApp.windowsMenu = win
   }
+}
+
+if let i = CommandLine.arguments.firstIndex(of: "--install"), i + 1 < CommandLine.arguments.count {
+  let r = installSystem(into: URL(fileURLWithPath: Project.real(CommandLine.arguments[i + 1])))
+  print("added \(r["added"]!.count), kept \(r["kept"]!.count)")
+  exit(0)
 }
 
 let app = NSApplication.shared
