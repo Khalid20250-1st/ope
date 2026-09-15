@@ -156,9 +156,11 @@ button{font:inherit;color:inherit}
 
 /* the chat header: the logo is the fold button */
 .chat .ph{justify-content:flex-start;gap:10px}
-.logo-btn{display:grid;place-items:center;width:26px;height:20px;padding:0;border:0;background:none;cursor:pointer;opacity:.9}
+/* a chat bubble with the mark inside it, so it reads as the chat, not as a second logo */
+.logo-btn{position:relative;display:block;width:30px;height:23px;padding:0;border:0;background:none;cursor:pointer;opacity:.9;color:var(--ink)}
 .logo-btn:hover{opacity:1}
-.logo-btn img{width:24px;height:auto;display:block}
+.logo-btn .bubble{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}
+.logo-btn img{position:absolute;left:6px;top:4.5px;width:18px;height:auto;display:block}
 .panel.shut.chat .ph{align-items:center}
 
 /* OPE Chat can be clicked and typed into, and says it is coming */
