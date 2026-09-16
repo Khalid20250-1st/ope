@@ -50,6 +50,32 @@
     return {repo:true, numbered:true, projects: projects};
   }
 
+  /* THE NUMBERS ARE IN THE HISTORY, NOT IN A LIST SOMEBODY KEEPS.
+     The method says every save is written as "1.11 what it did", so the project
+     numbers are already in the git log. Reading them there means a version
+     somebody else started shows up by itself, with no list to keep up to date
+     and nothing to remember. */
+  function numbersFromLog(){
+    return git(['log', '--format=%H%x09%cI%x09%s', '-n', '600']).then(function(r){
+      if(r.code !== 0) return [];
+      var by = {};
+      r.out.split('\n').filter(Boolean).forEach(function(l){
+        var p = l.split('\t'), m = /^\s*(?:v|ope[\/-])?(\d+)\.(\d+)\b[:. ]?\s*(.*)$/.exec(p[2] || '');
+        if(!m) return;
+        var name = m[1] + '.' + m[2];
+        var v = by[name] || (by[name] = {name: name, major: +m[1], minor: +m[2], commits: [], summary: '', date: p[1]});
+        v.commits.push(p[0]);
+        /* the log runs newest first, so the last line seen is the first save of
+           that version, and its words are what the version set out to do */
+        var said = (m[3] || '').replace(/^\d+[a-z]?\s+/i, '').trim();
+        if(said) v.summary = said.charAt(0).toUpperCase() + said.slice(1);
+        v.date = p[1];
+      });
+      return Object.keys(by).map(function(k){ return by[k]; })
+        .sort(function(a, b){ return a.major - b.major || a.minor - b.minor; });
+    }).catch(function(){ return []; });
+  }
+
   function history(){
     return git(['log', '--format=%H%x09%P%x09%cI%x09%s', '-n', '300']).then(function(r){
       var rows = r.out.split('\n').filter(Boolean).map(function(l){
@@ -206,6 +232,6 @@
   }
 
   window.OPEGit = {EMPTY: EMPTY, isRepo: isRepo, loadVersions: loadVersions, changes: changes, lines: lines,
-    liveChanges: liveChanges,
+    liveChanges: liveChanges, numbersFromLog: numbersFromLog,
                    checkpoint: checkpoint, startTracking: startTracking, listFiles: listFiles};
 })();

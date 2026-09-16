@@ -191,8 +191,9 @@
       return OPEGit.listFiles(S.repo);
     }).then(function(files){
       S.files = files;
-      return null;
-    }).then(function(){
+      return S.repo ? OPEGit.numbersFromLog() : [];
+    }).then(function(found){
+      S.numbers = found || [];
       renderProjects(); renderVersions();
       return S.version ? markVersion(S.version) : renderTree();
     }).then(function(){
@@ -240,6 +241,18 @@
   function libGroup(top, all){
     var kids = all.filter(function(x){ return libParent(x, all) === top; });
     var versions = (kids.length ? kids : [top]).map(libVersion);
+    /* WHAT SOMEBODY ELSE STARTED SHOWS UP TOO.
+       The library is a list kept by hand. The history is the truth: a version
+       saved as "1.12 ..." belongs to this project whether anybody wrote it down
+       or not, so it is added here rather than waiting to be typed in. */
+    var major = numParts(top.number)[0];
+    (S.numbers || []).forEach(function(n){
+      if(n.major !== major) return;
+      var have = versions.filter(function(v){ return v.name === n.name; })[0];
+      if(have){ if(!have.commits) have.commits = n.commits; return; }
+      versions.push({name: n.name, summary: n.summary, commits: n.commits, lib: true, fromLog: true});
+    });
+    versions.sort(function(a, b){ return numCmp(a.name, b.name); });
     return {id: 'lib:' + top.number, title: top.number + ' ' + top.name, versions: versions};
   }
   function applyLibMajor(){
@@ -377,8 +390,9 @@
         var v = list[+b.getAttribute('data-v')];
         if(v.lib){
           var e = libNumbered().filter(function(x){ return x.number === v.name; })[0];
-          if(e) selectNumbered(e);
-          return;
+          /* a version the history knows and the hand kept list does not is
+             picked here, like any other */
+          if(e){ selectNumbered(e); return; }
         }
         if(same(S.version, v)){ S.version = null; clearMarks(); renderVersions(); return; }
         S.version = v; S.follow = true; renderVersions(); markVersion(v);
