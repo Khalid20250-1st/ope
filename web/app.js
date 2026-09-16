@@ -354,23 +354,22 @@
     panel.classList.toggle('hidden', !S.project && !live);
     if(!S.project && !live) return;
     $('versionsHead').textContent = S.project ? S.project.title.toUpperCase() : 'NOW';
-    /* NOW IS NOT A VERSION OF ITS OWN. The work happening this minute belongs
-       to the version being built, which is the last one, so that row carries
-       the green dot and says Now. Everything else stays where it was. */
+    /* NOW IS ITS OWN ROW, AND IT NEVER CLAIMS A NUMBER.
+       Two chats can be in one folder on two different projects at once, so the
+       work happening this minute does not belong to whichever version is last.
+       Now says what is moving and names the files; the numbered versions below
+       it stay what they have always been, what that version built. */
     var list = (S.project ? S.project.versions : []).slice();
     if(live){
-      var say = hot.length + (hot.length === 1 ? ' file being written' : ' files being written');
-      if(list.length){
-        var last = list[list.length - 1];
-        list[list.length - 1] = Object.assign({}, last, {live: true, summary: say});
-      } else {
-        list = [{name: 'Now', live: true, bare: true, summary: say}];
-      }
+      var say = hot.length > 2
+        ? base(hot[0]) + ', ' + base(hot[1]) + ' and ' + (hot.length - 2) + ' more'
+        : hot.map(base).join(', ');
+      list = [{name: 'Now', live: true, bare: true, summary: say}].concat(list);
     }
-    var same = function(a, b){ return a && b && (a.bare || b.bare ? a.bare === b.bare : a.lib ? a.name === b.name : a.commit === b.commit); };
+    var same = function(a, b){ return a && b && (a.bare || b.bare ? !!a.bare === !!b.bare : a.lib ? a.name === b.name : a.commit === b.commit); };
     $('versionList').innerHTML = list.map(function(v, i){
       return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.live ? ' live' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button">'+
-        '<b>'+esc(v.name)+(v.live && !v.bare ? '<i class="now">Now</i>' : '')+'</b>'+
+        '<b>'+esc(v.name)+(v.bare ? '<i class="now"></i>' : '')+'</b>'+
         (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+'</button>';
     }).join('');
     Array.prototype.forEach.call($('versionList').querySelectorAll('[data-v]'), function(b){
@@ -401,13 +400,7 @@
 
   /* the version being built is the last one, so that is the one the work on
      disk belongs to, however it was picked: from the library or from git */
-  function isLive(v){
-    if(!v || !hotList().length) return false;
-    if(v.bare) return true;                 /* the Now row on its own, with no versions yet */
-    if(!S.project) return false;
-    var vs = S.project.versions;
-    return !!vs.length && v.name === vs[vs.length - 1].name;
-  }
+  function isLive(v){ return !!(v && v.bare && hotList().length); }
 
   /* WHAT IS BEING WRITTEN, RIGHT NOW, BY WHOEVER IS WRITING IT.
      Two chats can be in one project at the same time, one on the SQL and one
