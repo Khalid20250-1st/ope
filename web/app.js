@@ -191,9 +191,8 @@
       return OPEGit.listFiles(S.repo);
     }).then(function(files){
       S.files = files;
-      return S.repo ? OPEGit.liveChanges() : [];
-    }).then(function(live){
-      S.live = live || [];
+      return null;
+    }).then(function(){
       renderProjects(); renderVersions();
       return S.version ? markVersion(S.version) : renderTree();
     }).then(function(){
@@ -351,7 +350,7 @@
 
   function renderVersions(){
     var panel = $('versions');
-    var live = (S.live && S.live.length) ? true : false;
+    var hot = hotList(), live = hot.length > 0;
     panel.classList.toggle('hidden', !S.project && !live);
     if(!S.project && !live) return;
     $('versionsHead').textContent = S.project ? S.project.title.toUpperCase() : 'NOW';
@@ -360,13 +359,12 @@
        the green dot and says Now. Everything else stays where it was. */
     var list = (S.project ? S.project.versions : []).slice();
     if(live){
+      var say = hot.length + (hot.length === 1 ? ' file being written' : ' files being written');
       if(list.length){
         var last = list[list.length - 1];
-        list[list.length - 1] = Object.assign({}, last, {live: true,
-          summary: S.live.length + (S.live.length === 1 ? ' file being written' : ' files being written')});
+        list[list.length - 1] = Object.assign({}, last, {live: true, summary: say});
       } else {
-        list = [{name: 'Now', live: true, bare: true,
-          summary: S.live.length + (S.live.length === 1 ? ' file being written' : ' files being written')}];
+        list = [{name: 'Now', live: true, bare: true, summary: say}];
       }
     }
     var same = function(a, b){ return a && b && (a.bare || b.bare ? a.bare === b.bare : a.lib ? a.name === b.name : a.commit === b.commit); };
@@ -404,7 +402,7 @@
   /* the version being built is the last one, so that is the one the work on
      disk belongs to, however it was picked: from the library or from git */
   function isLive(v){
-    if(!v || !(S.live && S.live.length)) return false;
+    if(!v || !hotList().length) return false;
     if(v.bare) return true;                 /* the Now row on its own, with no versions yet */
     if(!S.project) return false;
     var vs = S.project.versions;
@@ -415,6 +413,10 @@
      Two chats can be in one project at the same time, one on the SQL and one
      on the tools. Every file touched in the last minute and a half is flagged,
      not just the newest, so both halves are seen moving at once. */
+  /* NOW IS ACTIVITY, NOT MESS.
+     An uncommitted file that nobody has touched for an hour is not being
+     written, it is just sitting there, so it gets no flag. A file is Now only
+     while something is actually saving it. */
   var HOT_FOR = 90000;
   function hotTouch(path){ S.hot[path] = Date.now(); }
   function hotList(){
@@ -438,12 +440,13 @@
   }
 
   function markVersion(v){
-    var get = isLive(v)
-      ? Promise.all([OPEGit.changes(v), OPEGit.changes({live: true})]).then(function(both){
-          var seen = {}, out = [];
-          both[1].concat(both[0]).forEach(function(f){ if(!seen[f.path]){ seen[f.path] = true; out.push(f); } });
-          return out;
+    var get = isLive(v) && !v.bare
+      ? OPEGit.changes(v).then(function(files){
+          var seen = {}; files.forEach(function(f){ seen[f.path] = true; });
+          return hotList().filter(function(p){ return !seen[p]; })
+            .map(function(p){ return {path: p, status: 'M'}; }).concat(files);
         })
+      : v.bare ? Promise.resolve(hotList().map(function(p){ return {path: p, status: 'M'}; }))
       : OPEGit.changes(v);
     return get.then(function(files){
       if(S.version !== v) return;
@@ -454,12 +457,7 @@
         var parts = f.path.split('/');
         for(var i = 1; i < parts.length; i++) S.dirs[parts.slice(0, i).join('/')] = true;
       });
-      if(isLive(v)){
-        /* nothing has moved since this window opened, so the newest change on
-           disk is the best guess at what is being worked on */
-        if(!hotList().length && S.live.length) hotTouch(S.live[S.live.length - 1].path);
-        hotList().forEach(openFolders);
-      }
+      if(isLive(v)) hotList().forEach(openFolders);
       renderTree();
       status(null, isLive(v) ? (hotLine() || versionLine()) : versionLine());
       if(isLive(v) && S.follow && !S.dirty){
@@ -612,13 +610,20 @@
       var paths = ev.paths || [];
       reload().then(function(){
         /* following Now: the file that just changed is the one to look at */
+        /* the watcher hands us what was saved, which is the only thing that
+           means somebody is working. Paths can arrive whole, so cut them back
+           to where the project starts. */
         var hit = null;
         paths.forEach(function(p){
-          (S.live || []).forEach(function(f){
-            if(p === f.path || p.slice(-f.path.length - 1) === '/' + f.path){ hotTouch(f.path); hit = f.path; }
-          });
+          var rel = p;
+          if(S.root && p.indexOf(S.root + '/') === 0) rel = p.slice(S.root.length + 1);
+          if(rel.indexOf('/.git/') >= 0 || rel.indexOf('.git/') === 0) return;
+          if(S.files.indexOf(rel) < 0) return;      /* not a file of this project */
+          hotTouch(rel); hit = rel;
         });
-        if(hit && isLive(S.version)){
+        if(hit){
+          renderVersions();                     /* Now appears the moment work starts */
+          if(!isLive(S.version)) return;
           openFolders(hit); renderTree(); status(null, hotLine());
           if(S.follow && !S.dirty && hit !== S.path){
             return Promise.resolve(openFile(hit)).then(function(){ status(null, hotLine()); });
