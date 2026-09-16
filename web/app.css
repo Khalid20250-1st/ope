@@ -66,6 +66,8 @@ html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .ver.sel{border-color:var(--ink)}
 /* NOW: the version that is still being written. It is the only row that is
    green on its own, because it is the only one that changes while you watch */
+.row.hot{border-color:var(--green);background:var(--green-wash)}
+.row.hot .meta.now{color:var(--green);animation:opePulse 1.6s ease-in-out infinite}
 .ver .now{display:inline-block;margin-left:8px;font-style:normal;font-size:11px;color:var(--green);letter-spacing:.04em}
 .ver .now::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
   background:var(--green);margin-right:5px;vertical-align:middle;animation:opePulse 1.6s ease-in-out infinite}

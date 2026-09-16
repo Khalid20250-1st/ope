@@ -8,7 +8,10 @@
 (function(){
   var S = {root:'', repo:false, numbered:false, projects:[], project:null, version:null,
            changed:{}, gone:[], dirs:{}, files:[], open:{}, path:'', dirty:false, loadedText:'',
-           editor:null, monaco:null, deco:[], promptText:'', recent:[], busy:false};
+           editor:null, monaco:null, deco:[], promptText:'', recent:[], busy:false,
+           /* what is being written this minute, and whether the window follows it.
+              Opening a file yourself stops the following; picking Now starts it. */
+           live:[], hot:{}, follow:true};
   var $ = function(id){ return document.getElementById(id); };
   function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function base(p){ return String(p).split(/[\/\\]/).pop(); }
@@ -195,7 +198,7 @@
       return S.version ? markVersion(S.version) : renderTree();
     }).then(function(){
       status(S.libSel ? 'Project ' + S.libSel + ', from your numbered projects' : S.repo ? (S.numbered ? 'Tracking versions with git' : 'Git history, no numbered versions yet') : 'Not tracked by git yet',
-             S.version ? versionLine() : '');
+             isLive(S.version) ? (hotLine() || versionLine()) : S.version ? versionLine() : '');
     });
   }
 
@@ -369,7 +372,7 @@
     var same = function(a, b){ return a && b && (a.bare || b.bare ? a.bare === b.bare : a.lib ? a.name === b.name : a.commit === b.commit); };
     $('versionList').innerHTML = list.map(function(v, i){
       return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.live ? ' live' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button">'+
-        '<b>'+esc(v.name)+(v.live ? '<i class="now">Now</i>' : '')+'</b>'+
+        '<b>'+esc(v.name)+(v.live && !v.bare ? '<i class="now">Now</i>' : '')+'</b>'+
         (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+'</button>';
     }).join('');
     Array.prototype.forEach.call($('versionList').querySelectorAll('[data-v]'), function(b){
@@ -381,7 +384,7 @@
           return;
         }
         if(same(S.version, v)){ S.version = null; clearMarks(); renderVersions(); return; }
-        S.version = v; renderVersions(); markVersion(v);
+        S.version = v; S.follow = true; renderVersions(); markVersion(v);
       };
     });
   }
@@ -401,9 +404,37 @@
   /* the version being built is the last one, so that is the one the work on
      disk belongs to, however it was picked: from the library or from git */
   function isLive(v){
-    if(!v || v.bare || !(S.live && S.live.length) || !S.project) return false;
+    if(!v || !(S.live && S.live.length)) return false;
+    if(v.bare) return true;                 /* the Now row on its own, with no versions yet */
+    if(!S.project) return false;
     var vs = S.project.versions;
     return !!vs.length && v.name === vs[vs.length - 1].name;
+  }
+
+  /* WHAT IS BEING WRITTEN, RIGHT NOW, BY WHOEVER IS WRITING IT.
+     Two chats can be in one project at the same time, one on the SQL and one
+     on the tools. Every file touched in the last minute and a half is flagged,
+     not just the newest, so both halves are seen moving at once. */
+  var HOT_FOR = 90000;
+  function hotTouch(path){ S.hot[path] = Date.now(); }
+  function hotList(){
+    var now = Date.now(), out = [];
+    Object.keys(S.hot).forEach(function(p){
+      if(now - S.hot[p] > HOT_FOR) delete S.hot[p]; else out.push(p);
+    });
+    return out.sort(function(a, b){ return S.hot[b] - S.hot[a]; });
+  }
+  function hotLine(){
+    var list = hotList();
+    if(!list.length) return null;
+    if(list.length === 1) return 'Now · writing ' + list[0];
+    return 'Now · writing ' + base(list[0]) + ' and ' + (list.length - 1) + ' more';
+  }
+
+  /* every folder above a file, so the row is on screen and not folded away */
+  function openFolders(path){
+    var parts = path.split('/');
+    for(var i = 1; i < parts.length; i++) S.open[parts.slice(0, i).join('/')] = true;
   }
 
   function markVersion(v){
@@ -423,8 +454,18 @@
         var parts = f.path.split('/');
         for(var i = 1; i < parts.length; i++) S.dirs[parts.slice(0, i).join('/')] = true;
       });
+      if(isLive(v)){
+        /* nothing has moved since this window opened, so the newest change on
+           disk is the best guess at what is being worked on */
+        if(!hotList().length && S.live.length) hotTouch(S.live[S.live.length - 1].path);
+        hotList().forEach(openFolders);
+      }
       renderTree();
-      status(null, versionLine());
+      status(null, isLive(v) ? (hotLine() || versionLine()) : versionLine());
+      if(isLive(v) && S.follow && !S.dirty){
+        var top = hotList()[0];
+        if(top && top !== S.path) return Promise.resolve(openFile(top)).then(function(){ status(null, hotLine()); });
+      }
       if(S.path) paintLines();
     }).catch(function(e){ status(e.message); });
   }
@@ -459,10 +500,14 @@
       });
       node.files.sort(function(a, b){ return base(a).localeCompare(base(b)); }).forEach(function(path){
         var st = S.changed[path], gone = st === 'D';
-        html.push('<button class="row'+(st && !gone ? ' green' : '')+(gone ? ' gone' : '')+(S.path === path ? ' sel' : '')+
+        /* THE ONE BEING WRITTEN THIS SECOND, not just one of the touched.
+           That is the whole point of Now: which SQL file, which tool. */
+        var hot = isLive(S.version) && !!S.hot[path];
+        html.push('<button class="row'+(st && !gone ? ' green' : '')+(gone ? ' gone' : '')+(hot ? ' hot' : '')+(S.path === path ? ' sel' : '')+
           '" data-file="'+esc(path)+'" type="button" style="padding-left:'+(22 + depth * 14)+'px"'+(gone ? ' disabled' : '')+'>'+
           '<span class="name">'+esc(base(path))+'</span>'+
-          (st ? '<span class="meta">'+({A:'new', M:'changed', D:'removed', T:'changed'}[st] || 'changed')+'</span>' : '')+'</button>');
+          (hot ? '<span class="meta now">writing</span>'
+               : st ? '<span class="meta">'+({A:'new', M:'changed', D:'removed', T:'changed'}[st] || 'changed')+'</span>' : '')+'</button>');
       });
     })(buildTree(), '', 0);
     box.innerHTML = html.join('') || '<div class="empty">This folder is empty.</div>';
@@ -478,7 +523,9 @@
       };
     });
     Array.prototype.forEach.call(box.querySelectorAll('[data-file]'), function(b){
-      b.onclick = function(){ openFile(b.getAttribute('data-file')); };
+      /* their choice wins: opening a file yourself stops Now following the work,
+         and picking Now again starts it */
+      b.onclick = function(){ S.follow = false; openFile(b.getAttribute('data-file')); };
     });
   }
 
@@ -565,14 +612,17 @@
       var paths = ev.paths || [];
       reload().then(function(){
         /* following Now: the file that just changed is the one to look at */
-        if(S.version && S.version.live && !S.dirty){
-          var hit = null;
-          paths.forEach(function(p){
-            (S.live || []).forEach(function(f){
-              if(p === f.path || p.slice(-f.path.length - 1) === '/' + f.path) hit = f.path;
-            });
+        var hit = null;
+        paths.forEach(function(p){
+          (S.live || []).forEach(function(f){
+            if(p === f.path || p.slice(-f.path.length - 1) === '/' + f.path){ hotTouch(f.path); hit = f.path; }
           });
-          if(hit && hit !== S.path) return openFile(hit);
+        });
+        if(hit && isLive(S.version)){
+          openFolders(hit); renderTree(); status(null, hotLine());
+          if(S.follow && !S.dirty && hit !== S.path){
+            return Promise.resolve(openFile(hit)).then(function(){ status(null, hotLine()); });
+          }
         }
         if(!S.path) return;
         var touched = !paths.length || paths.some(function(p){ return p === S.path || p.slice(-S.path.length) === S.path; });
