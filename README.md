@@ -69,7 +69,12 @@ The Projects list keeps every project folder you work on. Whole numbers sit in t
 first column (1.0, 2.0). Pick one and its versions (1.1, 1.2, 1.3) open in the next
 column, each with a line saying what it did. The list is kept on your Mac only.
 
-The numbers come out of the project's own history. Every save the method makes is
+A project appears the moment it is named: the method writes it into `PROJECTS.md`
+as `## 1.13 Reviews` with `Building` under it, then its task list. Pick it and the
+tasks show where the code goes until you open a file, and a project being built
+with no task list says so in amber, so a skipped plan is seen at once.
+
+The numbers also come out of the project's own history. Every save the method makes is
 written as `1.2: what it does`, so a version appears in OPE on its own, including
 one another chat started while you were looking somewhere else. Nothing is kept by
 hand and nothing goes stale.

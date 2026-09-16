@@ -202,9 +202,9 @@
       (both[0] || []).forEach(function(n){ byName[n.name] = n; });
       (both[1] || []).forEach(function(f){
         var n = byName[f.name];
-        if(n){ n.building = f.building; if(f.summary) n.named = f.summary; }
+        if(n){ n.building = f.building; n.tasks = f.tasks; if(f.summary) n.named = f.summary; }
         else byName[f.name] = {name: f.name, major: f.major, minor: f.minor, commits: [],
-                               summary: f.summary, named: f.summary, building: f.building};
+                               summary: f.summary, named: f.summary, building: f.building, tasks: f.tasks};
       });
       S.numbers = Object.keys(byName).map(function(k){ return byName[k]; })
         .sort(function(a, b){ return a.major - b.major || a.minor - b.minor; });
@@ -214,7 +214,7 @@
         var groups = {};
         S.numbers.forEach(function(n){
           (groups[n.major] = groups[n.major] || []).push({name: n.name, summary: n.named || n.summary,
-            commits: n.commits, building: n.building});
+            commits: n.commits, building: n.building, tasks: n.tasks});
         });
         S.projects = Object.keys(groups).map(Number).sort(function(a, b){ return a - b; }).map(function(m){
           return {id: 'num:' + m, title: 'Project ' + m + '.0', versions: groups[m]};
@@ -282,9 +282,9 @@
     (S.numbers || []).forEach(function(n){
       if(n.major !== major) return;
       var have = versions.filter(function(v){ return v.name === n.name; })[0];
-      if(have){ if(!have.commits && n.commits.length) have.commits = n.commits; have.building = n.building; return; }
+      if(have){ if(!have.commits && n.commits.length) have.commits = n.commits; have.building = n.building; have.tasks = n.tasks; return; }
       versions.push({name: n.name, summary: n.named || n.summary, commits: n.commits, lib: true, fromLog: true,
-                     building: n.building});
+                     building: n.building, tasks: n.tasks});
     });
     versions.sort(function(a, b){ return numCmp(a.name, b.name); });
     return {id: 'lib:' + top.number, title: top.number + ' ' + top.name, versions: versions};
@@ -420,7 +420,11 @@
       return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.live ? ' live' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button">'+
         '<b>'+esc(v.name)+(v.bare ? '<i class="now"></i>' : v.live ? '<i class="now">Now</i>' : v.building ? '<i class="bld">building</i>' : '')+'</b>'+
         (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+
-        (v.now ? '<span class="nowsay">'+esc(v.now)+'</span>' : '')+'</button>';
+        (v.now ? '<span class="nowsay">'+esc(v.now)+'</span>' : '')+
+        /* a project that is being built with no task list is the mistake this
+           is here to catch, so it says so on the row */
+        (v.building ? '<span class="'+(v.tasks && v.tasks.length ? '' : 'notasks')+'">'+
+          (v.tasks && v.tasks.length ? taskCount(v.tasks) : 'No task list yet')+'</span>' : '')+'</button>';
     }).join('');
     Array.prototype.forEach.call($('versionList').querySelectorAll('[data-v]'), function(b){
       b.onclick = function(){
@@ -435,6 +439,23 @@
         S.version = v; S.follow = true; renderVersions(); markVersion(v);
       };
     });
+  }
+
+  function taskCount(tasks){
+    var mine = tasks.filter(function(t){ return /a$/.test(t.id); }).length;
+    var theirs = tasks.filter(function(t){ return /^\d+$/.test(t.id) && !/^none\b/i.test(t.text); }).length;
+    return mine + (mine === 1 ? ' task' : ' tasks') + (theirs ? ', ' + theirs + ' for you' : '');
+  }
+
+  /* THE TASK LIST, WHERE THE CODE WOULD BE, until a file is opened */
+  function showTasks(v){
+    if(!v || !v.tasks || !v.tasks.length) return;
+    blank('<div class="tasks"><p class="tk">Project ' + esc(v.name) + (v.summary ? ' · ' + esc(v.summary) : '') +
+      (v.building ? ' · building' : '') + '</p>' +
+      v.tasks.map(function(t){
+        var kind = /a$/.test(t.id) ? 'a' : /b$/.test(t.id) ? 'b' : 'n';
+        return '<div class="task ' + kind + '"><b>' + esc(t.id) + '</b><span>' + esc(t.text) + '</span></div>';
+      }).join('') + '</div>');
   }
 
   function versionLine(){
@@ -510,7 +531,7 @@
         var top = hotList()[0];
         if(top && top !== S.path) return Promise.resolve(openFile(top)).then(function(){ status(null, hotLine()); });
       }
-      if(S.path) paintLines();
+      if(S.path) paintLines(); else showTasks(v);
     }).catch(function(e){ status(e.message); });
   }
 

@@ -87,9 +87,13 @@
       String((r && r.text) || '').split('\n').forEach(function(line){
         var h = /^#{1,3}\s*(?:project\s+)?(\d+)\.(\d+)\b[:.]?\s*(.*)$/i.exec(line.trim());
         if(h){
-          cur = {name: h[1] + '.' + h[2], major: +h[1], minor: +h[2], summary: h[3].trim(), building: false};
+          cur = {name: h[1] + '.' + h[2], major: +h[1], minor: +h[2], summary: h[3].trim(), building: false, tasks: []};
           out.push(cur); return;
         }
+        /* the tasks under it: "1 none", "1a what gets built", "2b what waits
+           on the person", with or without bold or a list dash in front */
+        var t = cur && /^[-*\s]*\**\s*(\d+[a-z]?)\**[.:)]?\s+(.+)$/i.exec(line.trim());
+        if(t && cur.status !== undefined){ cur.tasks.push({id: t[1].toLowerCase(), text: t[2].replace(/\*\*/g, '').trim()}); return; }
         if(cur && cur.status === undefined && line.trim()){
           var w = line.trim().toLowerCase();
           cur.status = /^building\b/.test(w) ? 'building' : /^done\b/.test(w) ? 'done' : '';

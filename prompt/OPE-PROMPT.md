@@ -26,9 +26,15 @@ Building
 ```
 
 The heading is the number and a short name. The line under it is the one word
-`Building` while you work on it and `Done` when it is finished. OPE reads this
-file, so the project appears the second I name it, and what you write while it
-says `Building` shows under it. Never leave a finished one on `Building`.
+`Building` while you work on it and `Done` when it is finished. Under that go
+the tasks, one per line (`1 none`, `1a what you build`). OPE reads this file, so
+the project and its tasks appear the second you write them, and what you write
+while it says `Building` shows under it. Never leave a finished one on `Building`.
+
+**Every project gets its task list, including a small change like 1.13.** If I
+have already said "build", write the list into `PROJECTS.md` and start building
+straight away without asking me again. Never skip the list because the work
+looks small.
 
 ## 2. Starting a project
 

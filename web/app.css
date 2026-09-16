@@ -225,3 +225,13 @@ html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .row .num{color:var(--green);min-width:40px;font-weight:600}
 .row.sub .num{min-width:40px}
 .row.faint .name,.row.faint .num,.ver.faint b,.ver.faint span{opacity:.55}
+
+/* the task list of a project, shown where the code goes until a file is opened */
+.tasks{max-width:640px;margin:0 auto;text-align:left;padding:8px 4px}
+.tasks .tk{color:var(--sub);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 14px}
+.tasks .task{display:flex;gap:14px;padding:7px 0;border-bottom:1px solid var(--edge-dim)}
+.tasks .task b{min-width:34px;color:var(--sub)}
+.tasks .task.a b{color:var(--green)}
+.tasks .task span{color:var(--ink)}
+.tasks .task.n span{color:var(--sub)}
+.ver .notasks{color:#E5A94B!important}

@@ -23,9 +23,11 @@ Building
 ```
 
 The heading is the number and a short name. The line under it is the one word
-`Building` while you work on it, and `Done` when it is finished. OPE reads this
-file, so the project shows up the second it is named and everything you write
-while it says `Building` shows under it. Never leave a finished one on `Building`.
+`Building` while you work on it, and `Done` when it is finished. Under that go
+the tasks, one per line (`1 none`, `1a what you build`). OPE reads this file, so
+the project and its tasks show up the second they are written, and everything
+you write while it says `Building` shows under it. Never leave a finished one
+on `Building`.
 
 ## 2. A whole number project (1.0, 2.0): plan once
 
@@ -38,11 +40,15 @@ while it says `Building` shows under it. Never leave a finished one on `Building
    - **Na** what *you* build
 4. Ask once: "Do you want me to take all the a?" Then build.
 
-## 3. A change (1.1, 1.2, a bug): just build it
+## 3. A change (1.1, 1.2, a bug): list it, then build it
 
-A numbered change or a bug report does **not** get a new plan or a new approval.
-Build it straight away, test it, save the checkpoint, and report it in one line.
-Only stop to ask when the change genuinely cannot be done without the person.
+A numbered change or a bug report does **not** wait for a new approval, but it
+**always gets its task list**. Write the tasks into `PROJECTS.md` under its
+heading, in the same **N** / **Na** form, then build straight away without
+asking: test it, save the checkpoint, and report it in one line. If the person
+has already said "build", that is the approval; write the list and go. Never
+skip the list because the change looks small. Only stop to ask when the change
+genuinely cannot be done without the person.
 
 ## 4. While building
 
