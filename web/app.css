@@ -70,6 +70,8 @@ html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .row.hot .meta.now{color:var(--green);animation:opePulse 1.6s ease-in-out infinite}
 .ver .now{display:inline-block;margin-left:8px;font-style:normal;font-size:11px;color:var(--green);letter-spacing:.04em}
 .ver.live b{color:var(--green)}
+.ver .bld{display:inline-block;margin-left:8px;font-style:normal;font-size:11px;color:var(--sub);letter-spacing:.04em}
+.ver .nowsay{color:var(--green)!important}
 .ver .now::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
   background:var(--green);margin-right:5px;vertical-align:middle;animation:opePulse 1.6s ease-in-out infinite}
 .ver.live.sel{border-color:var(--green)}

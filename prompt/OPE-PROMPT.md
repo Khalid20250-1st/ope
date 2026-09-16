@@ -17,6 +17,19 @@ next big piece. When I say "project 1.1", I mean the next change to project 1.
 
 Use my numbers exactly as I say them. Never renumber, skip or reuse one.
 
+**The moment I say a number, write it down before anything else.** Add it to
+`PROJECTS.md` in the root of the folder, exactly like this, and save the file:
+
+```
+## 1.13 Reviews
+Building
+```
+
+The heading is the number and a short name. The line under it is the one word
+`Building` while you work on it and `Done` when it is finished. OPE reads this
+file, so the project appears the second I name it, and what you write while it
+says `Building` shows under it. Never leave a finished one on `Building`.
+
 ## 2. Starting a project
 
 When I name a project:
@@ -67,9 +80,9 @@ end of **every** project and every numbered change, without being asked.
    names the version in a folder with no tags, and how the person tells two
    chats apart when both are in the same project. Save as you go, not only at
    the end, so each save is a step they can look at while the work runs.
-3. Keep a file called `PROJECTS.md` in the root of the folder. Under each version
-   number write what it does in one or two plain sentences, and add to it with
-   every checkpoint.
+3. Keep `PROJECTS.md` up to date. Under each `## number name` heading: the one
+   word `Building` or `Done`, then one or two plain sentences on what it does.
+   Change `Building` to `Done` at the checkpoint that finishes it.
 4. If I edit a file myself in OPE, keep my change. Read the file again before you
    touch it, and never overwrite my edit with an older copy.
 

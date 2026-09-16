@@ -179,6 +179,9 @@
   }
 
   function reload(){
+    /* the project being looked at, remembered across the reload, because its
+       list can be rebuilt from the numbers below and would otherwise be lost */
+    var keepId = S.project && S.project.id;
     return OPEGit.loadVersions().then(function(d){
       S.repo = d.repo; S.numbered = d.numbered; S.projects = d.projects;
       if(S.libSel && applyLibSel()){ /* the numbered selection is rebuilt from the library */ }
@@ -191,9 +194,39 @@
       return OPEGit.listFiles(S.repo);
     }).then(function(files){
       S.files = files;
-      return S.repo ? OPEGit.numbersFromLog() : [];
-    }).then(function(found){
-      S.numbers = found || [];
+      return Promise.all([S.repo ? OPEGit.numbersFromLog() : [], OPEGit.projectsFile()]);
+    }).then(function(both){
+      /* the history says what was saved; PROJECTS.md says what was named and
+         what is being built right now. A number in either one is a project. */
+      var byName = {};
+      (both[0] || []).forEach(function(n){ byName[n.name] = n; });
+      (both[1] || []).forEach(function(f){
+        var n = byName[f.name];
+        if(n){ n.building = f.building; if(f.summary) n.named = f.summary; }
+        else byName[f.name] = {name: f.name, major: f.major, minor: f.minor, commits: [],
+                               summary: f.summary, named: f.summary, building: f.building};
+      });
+      S.numbers = Object.keys(byName).map(function(k){ return byName[k]; })
+        .sort(function(a, b){ return a.major - b.major || a.minor - b.minor; });
+      /* a folder with no library entry and no tags still gets its projects by
+         number, so this works for anybody who opens a folder, not only here */
+      if(!S.libMajor && !S.libSel && !S.numbered && S.numbers.length){
+        var groups = {};
+        S.numbers.forEach(function(n){
+          (groups[n.major] = groups[n.major] || []).push({name: n.name, summary: n.named || n.summary,
+            commits: n.commits, building: n.building});
+        });
+        S.projects = Object.keys(groups).map(Number).sort(function(a, b){ return a - b; }).map(function(m){
+          return {id: 'num:' + m, title: 'Project ' + m + '.0', versions: groups[m]};
+        });
+        var again = S.projects.filter(function(p){ return p.id === keepId; })[0];
+        if(again) S.project = again;
+        else if(!S.project && S.projects.length === 1 && keepId) S.project = S.projects[0];
+        if(S.version && S.project && !S.version.bare){
+          var name = S.version.name;
+          S.version = S.project.versions.filter(function(v){ return v.name === name; })[0] || S.version;
+        }
+      }
       renderProjects(); renderVersions();
       return S.version ? markVersion(S.version) : renderTree();
     }).then(function(){
@@ -249,8 +282,9 @@
     (S.numbers || []).forEach(function(n){
       if(n.major !== major) return;
       var have = versions.filter(function(v){ return v.name === n.name; })[0];
-      if(have){ if(!have.commits) have.commits = n.commits; return; }
-      versions.push({name: n.name, summary: n.summary, commits: n.commits, lib: true, fromLog: true});
+      if(have){ if(!have.commits && n.commits.length) have.commits = n.commits; have.building = n.building; return; }
+      versions.push({name: n.name, summary: n.named || n.summary, commits: n.commits, lib: true, fromLog: true,
+                     building: n.building});
     });
     versions.sort(function(a, b){ return numCmp(a.name, b.name); });
     return {id: 'lib:' + top.number, title: top.number + ' ' + top.name, versions: versions};
@@ -373,17 +407,20 @@
        Now says what is moving and names the files; the numbered versions below
        it stay what they have always been, what that version built. */
     var list = (S.project ? S.project.versions : []).slice();
+    var building = list.some(function(v){ return v.building; });
     if(live){
       var say = hot.length > 2
         ? base(hot[0]) + ', ' + base(hot[1]) + ' and ' + (hot.length - 2) + ' more'
         : hot.map(base).join(', ');
-      list = [{name: 'Now', live: true, bare: true, summary: say}].concat(list);
+      if(building) list = list.map(function(v){ return v.building ? Object.assign({}, v, {live: true, now: say}) : v; });
+      else list = [{name: 'Now', live: true, bare: true, summary: say}].concat(list);
     }
-    var same = function(a, b){ return a && b && (a.bare || b.bare ? !!a.bare === !!b.bare : a.lib ? a.name === b.name : a.commit === b.commit); };
+    var same = function(a, b){ return a && b && (a.bare || b.bare ? !!a.bare === !!b.bare : (a.lib || !a.commit) ? a.name === b.name : a.commit === b.commit); };
     $('versionList').innerHTML = list.map(function(v, i){
       return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.live ? ' live' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button">'+
-        '<b>'+esc(v.name)+(v.bare ? '<i class="now"></i>' : '')+'</b>'+
-        (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+'</button>';
+        '<b>'+esc(v.name)+(v.bare ? '<i class="now"></i>' : v.live ? '<i class="now">Now</i>' : v.building ? '<i class="bld">building</i>' : '')+'</b>'+
+        (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+
+        (v.now ? '<span class="nowsay">'+esc(v.now)+'</span>' : '')+'</button>';
     }).join('');
     Array.prototype.forEach.call($('versionList').querySelectorAll('[data-v]'), function(b){
       b.onclick = function(){
@@ -414,7 +451,9 @@
 
   /* the version being built is the last one, so that is the one the work on
      disk belongs to, however it was picked: from the library or from git */
-  function isLive(v){ return !!(v && v.bare && hotList().length); }
+  /* the work happening now belongs to the project PROJECTS.md says is being
+     built. With none marked, it stands on its own row and claims no number. */
+  function isLive(v){ return !!(v && (v.bare || v.building) && hotList().length); }
 
   /* WHAT IS BEING WRITTEN, RIGHT NOW, BY WHOEVER IS WRITING IT.
      Two chats can be in one project at the same time, one on the SQL and one

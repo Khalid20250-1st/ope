@@ -14,6 +14,19 @@ the next big piece. **1.1, 1.2, 1.3** are changes to project 1. Use the numbers
 exactly as the person says them. Never renumber, skip or reuse one. Numbers have
 two parts only.
 
+**The moment a number is said, write it down, before anything else.** Add it to
+`PROJECTS.md` in the root, exactly like this, and save the file:
+
+```
+## 1.13 Reviews
+Building
+```
+
+The heading is the number and a short name. The line under it is the one word
+`Building` while you work on it, and `Done` when it is finished. OPE reads this
+file, so the project shows up the second it is named and everything you write
+while it says `Building` shows under it. Never leave a finished one on `Building`.
+
 ## 2. A whole number project (1.0, 2.0): plan once
 
 1. Ask for one thing only: the **description**.
@@ -50,8 +63,8 @@ Only stop to ask when the change genuinely cannot be done without the person.
 - One job per file, named after what it does for a person (`login`, `payments`),
   never `utils2` or `stuff`. Keep files under about 400 lines.
 - The first line of every file says in plain words what the file is for.
-- Keep `PROJECTS.md` in the root: under each version number, one or two plain
-  sentences on what it did.
+- Keep `PROJECTS.md` in the root. Under each `## number name` heading: the one
+  word `Building` or `Done`, then one or two plain sentences on what it did.
 
 ## 6. A checkpoint for every version
 

@@ -76,6 +76,30 @@
     }).catch(function(){ return []; });
   }
 
+  /* THE NUMBER EXISTS THE MOMENT IT IS SAID.
+     A project gets its first save only after work has started, so the history
+     cannot show a project that was named a minute ago. The method writes it
+     into PROJECTS.md first, as "## 1.13 Reviews" with "Building" or "Done" on
+     the line under it, and this reads that. */
+  function projectsFile(){
+    return OPEBridge.call('read', {path: 'PROJECTS.md'}).then(function(r){
+      var out = [], cur = null;
+      String((r && r.text) || '').split('\n').forEach(function(line){
+        var h = /^#{1,3}\s*(?:project\s+)?(\d+)\.(\d+)\b[:.]?\s*(.*)$/i.exec(line.trim());
+        if(h){
+          cur = {name: h[1] + '.' + h[2], major: +h[1], minor: +h[2], summary: h[3].trim(), building: false};
+          out.push(cur); return;
+        }
+        if(cur && cur.status === undefined && line.trim()){
+          var w = line.trim().toLowerCase();
+          cur.status = /^building\b/.test(w) ? 'building' : /^done\b/.test(w) ? 'done' : '';
+          cur.building = cur.status === 'building';
+        }
+      });
+      return out;
+    }).catch(function(){ return []; });
+  }
+
   function history(){
     return git(['log', '--format=%H%x09%P%x09%cI%x09%s', '-n', '300']).then(function(r){
       var rows = r.out.split('\n').filter(Boolean).map(function(l){
@@ -232,6 +256,6 @@
   }
 
   window.OPEGit = {EMPTY: EMPTY, isRepo: isRepo, loadVersions: loadVersions, changes: changes, lines: lines,
-    liveChanges: liveChanges, numbersFromLog: numbersFromLog,
+    liveChanges: liveChanges, numbersFromLog: numbersFromLog, projectsFile: projectsFile,
                    checkpoint: checkpoint, startTracking: startTracking, listFiles: listFiles};
 })();
