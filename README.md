@@ -47,11 +47,19 @@ does not know the app: press **More info**, then **Run anyway**. OPE needs
    - Every folder that version touched gets a **green box**.
    - Open a folder and the files it touched are boxed.
    - Open a file and the **lines that version wrote** are boxed.
-5. **Fix it right there.** Edit the code, press Save (⌘S), and the real file
+5. **Watch it happen.** While your AI is working, the version being built says
+   **Now**. Every file it is saving that minute is marked *writing*, the folders
+   above them open themselves, and the file it just wrote opens in front of you.
+   Two chats in one project both show, so you can see the SQL and the tools
+   moving at the same time. Open a file yourself and it stops following you;
+   press Now again and it follows again.
+6. **Fix it right there.** Edit the code, press Save (⌘S), and the real file
    changes. Press Checkpoint to keep your edit as its own save point.
 
 OPE watches the folder. When your AI writes files or saves a new version, OPE
 updates on its own.
+
+![Now: the two files being written this minute, marked writing](docs/now.png)
 
 ![A file open: the lines from version 1.1 are boxed in green](docs/lines.png)
 

@@ -32,5 +32,19 @@ await page.click('[data-dir="ope-system/maps"]'); await wait(200);
 await page.click('[data-file="AGENTS.md"]'); await wait(1500);
 await page.screenshot({ path: out + 'system.png' });
 
+/* NOW: the version being built, with the work landing while you watch. The
+   writes below are what an AI coder saving files looks like to OPE. */
+import { writeFileSync, appendFileSync } from 'node:fs';
+const demo = '/private/tmp/ope-demo/tasks-app/';
+await page.click('#ope .rail [data-view="projects"]'); await wait(300);
+await page.click('[data-num="1.0"]'); await wait(1000);
+appendFileSync(demo + 'src/components/task-list.js', '\n/* a due date on a task */\n');
+await wait(1200);
+writeFileSync(demo + 'src/due.js', 'export function due(task){\n  return task.due ? new Date(task.due) : null;\n}\n');
+await wait(2500);
+await page.click('.ver.live'); await wait(1500);
+await page.click('[data-file="src/due.js"]'); await wait(1500);
+await page.screenshot({ path: out + 'now.png' });
+
 await browser.close();
 console.log('screenshots in docs/');
