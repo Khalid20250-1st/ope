@@ -188,6 +188,9 @@
       return OPEGit.listFiles(S.repo);
     }).then(function(files){
       S.files = files;
+      return S.repo ? OPEGit.liveChanges() : [];
+    }).then(function(live){
+      S.live = live || [];
       renderProjects(); renderVersions();
       return S.version ? markVersion(S.version) : renderTree();
     }).then(function(){
@@ -345,13 +348,18 @@
 
   function renderVersions(){
     var panel = $('versions');
-    panel.classList.toggle('hidden', !S.project);
-    if(!S.project) return;
-    $('versionsHead').textContent = S.project.title.toUpperCase();
-    var list = S.project.versions;
-    var same = function(a, b){ return a && b && (a.lib ? a.name === b.name : a.commit === b.commit); };
+    var live = (S.live && S.live.length) ? true : false;
+    panel.classList.toggle('hidden', !S.project && !live);
+    if(!S.project && !live) return;
+    $('versionsHead').textContent = S.project ? S.project.title.toUpperCase() : 'NOW';
+    /* NOW, ABOVE THE VERSIONS. What is being written this minute: every file
+       touched since the last checkpoint, and its new lines in green. */
+    var list = (live ? [{name: 'Now', live: true,
+        summary: S.live.length + (S.live.length === 1 ? ' file being written' : ' files being written')}] : [])
+      .concat(S.project ? S.project.versions : []);
+    var same = function(a, b){ return a && b && (a.live || b.live ? a.live === b.live : a.lib ? a.name === b.name : a.commit === b.commit); };
     $('versionList').innerHTML = list.map(function(v, i){
-      return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button"><b>'+esc(v.name)+'</b>'+
+      return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.live ? ' live' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button"><b>'+esc(v.name)+'</b>'+
         (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+'</button>';
     }).join('');
     Array.prototype.forEach.call($('versionList').querySelectorAll('[data-v]'), function(b){
@@ -522,6 +530,16 @@
     pending = setTimeout(function(){
       var paths = ev.paths || [];
       reload().then(function(){
+        /* following Now: the file that just changed is the one to look at */
+        if(S.version && S.version.live && !S.dirty){
+          var hit = null;
+          paths.forEach(function(p){
+            (S.live || []).forEach(function(f){
+              if(p === f.path || p.slice(-f.path.length - 1) === '/' + f.path) hit = f.path;
+            });
+          });
+          if(hit && hit !== S.path) return openFile(hit);
+        }
         if(!S.path) return;
         var touched = !paths.length || paths.some(function(p){ return p === S.path || p.slice(-S.path.length) === S.path; });
         if(!touched) return;

@@ -89,7 +89,46 @@
     });
   }
 
+  /* NOW: WHAT IS BEING WRITTEN THIS MINUTE.
+     Not a version yet, the working folder as it stands against the last
+     checkpoint. It is how you watch an AI coder work: the files it is touching
+     get their green box the moment it saves them. */
+  function liveChanges(){
+    return git(['status', '--porcelain', '--untracked-files=all']).then(function(r){
+      if(r.code !== 0) return [];
+      var out = [];
+      r.out.split('\n').filter(Boolean).forEach(function(l){
+        var code = l.slice(0, 2), path = l.slice(3);
+        if(/^R/.test(code)){ var bits = path.split(' -> '); path = bits[bits.length - 1]; }
+        if(path.charAt(0) === '"') { try { path = JSON.parse(path); } catch(e){} }
+        var st = code === '??' ? 'A' : /D/.test(code) ? 'D' : /A/.test(code) ? 'A' : 'M';
+        out.push({path: path, status: st});
+      });
+      return out;
+    }).catch(function(){ return []; });
+  }
+
+  /* the lines of a file that are new or changed since the last checkpoint */
+  function liveLines(path){
+    var pick = function(r){
+      var nums = [], m;
+      var re = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm;
+      while((m = re.exec(r.out))){
+        var start = +m[1], count = m[2] === undefined ? 1 : +m[2];
+        for(var i = 0; i < count; i++) nums.push(start + i);
+      }
+      return nums;
+    };
+    return git(['diff', '-U0', '--no-color', 'HEAD', '--', path]).then(function(r){
+      if(r.code === 0 && r.out) return pick(r);
+      /* a brand new file is in no commit, so git has nothing to compare it to */
+      return git(['diff', '-U0', '--no-color', '--no-index', '--', '/dev/null', path])
+        .then(pick).catch(function(){ return []; });
+    }).catch(function(){ return []; });
+  }
+
   function changes(v){
+    if(v.live) return liveChanges();
     if(v.commits) return changesOf(v.commits);
     return git(['diff', '--relative', '--name-status', '-M', v.prev, v.commit]).then(function(r){
       var files = [];
@@ -118,6 +157,7 @@
 
   /* the line numbers, in the file as it is on disk now, that the version wrote */
   function lines(v, path){
+    if(v.live) return liveLines(path);
     return Promise.all([commitsIn(v), git(['blame', '--porcelain', '--', path])]).then(function(res){
       var set = res[0], r = res[1], out = [];
       if(r.code !== 0) return out;
@@ -157,5 +197,6 @@
   }
 
   window.OPEGit = {EMPTY: EMPTY, isRepo: isRepo, loadVersions: loadVersions, changes: changes, lines: lines,
+    liveChanges: liveChanges,
                    checkpoint: checkpoint, startTracking: startTracking, listFiles: listFiles};
 })();
