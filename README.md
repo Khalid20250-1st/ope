@@ -69,6 +69,11 @@ The Projects list keeps every project folder you work on. Whole numbers sit in t
 first column (1.0, 2.0). Pick one and its versions (1.1, 1.2, 1.3) open in the next
 column, each with a line saying what it did. The list is kept on your Mac only.
 
+The numbers come out of the project's own history. Every save the method makes is
+written as `1.2: what it does`, so a version appears in OPE on its own, including
+one another chat started while you were looking somewhere else. Nothing is kept by
+hand and nothing goes stale.
+
 ## The system, as files
 
 ![After Add OPE to this project: AGENTS.md, CLAUDE.md and the ope-system folder](docs/system.png)

@@ -63,6 +63,10 @@ end of **every** project and every numbered change, without being asked.
 
    The tag is the version number and nothing else: `1.0`, `1.1`, `2.0`.
    Never put a `v` in front of it and never move or delete an old tag.
+   **Every commit message starts with the version number.** That is how OPE
+   names the version in a folder with no tags, and how the person tells two
+   chats apart when both are in the same project. Save as you go, not only at
+   the end, so each save is a step they can look at while the work runs.
 3. Keep a file called `PROJECTS.md` in the root of the folder. Under each version
    number write what it does in one or two plain sentences, and add to it with
    every checkpoint.

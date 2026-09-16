@@ -68,6 +68,11 @@ delete an old tag. Run `git init` once if the folder is not a repository. OPE re
 these tags to show which files and lines each version touched. If the person
 edited a file themselves, keep their change.
 
+**Start every save with the number**, as above. It is how the version gets its
+name in OPE even in a folder with no tags, and it is how the person can tell two
+chats apart when both are working in the same project. Save as you go, not only
+at the end: each save is a step the person can look at while the work is running.
+
 ## 7. Finishing
 
 1. Refine anything worth refining, and test again.
