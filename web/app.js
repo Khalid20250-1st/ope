@@ -352,14 +352,24 @@
     panel.classList.toggle('hidden', !S.project && !live);
     if(!S.project && !live) return;
     $('versionsHead').textContent = S.project ? S.project.title.toUpperCase() : 'NOW';
-    /* NOW, ABOVE THE VERSIONS. What is being written this minute: every file
-       touched since the last checkpoint, and its new lines in green. */
-    var list = (live ? [{name: 'Now', live: true,
-        summary: S.live.length + (S.live.length === 1 ? ' file being written' : ' files being written')}] : [])
-      .concat(S.project ? S.project.versions : []);
-    var same = function(a, b){ return a && b && (a.live || b.live ? a.live === b.live : a.lib ? a.name === b.name : a.commit === b.commit); };
+    /* NOW IS NOT A VERSION OF ITS OWN. The work happening this minute belongs
+       to the version being built, which is the last one, so that row carries
+       the green dot and says Now. Everything else stays where it was. */
+    var list = (S.project ? S.project.versions : []).slice();
+    if(live){
+      if(list.length){
+        var last = list[list.length - 1];
+        list[list.length - 1] = Object.assign({}, last, {live: true,
+          summary: S.live.length + (S.live.length === 1 ? ' file being written' : ' files being written')});
+      } else {
+        list = [{name: 'Now', live: true, bare: true,
+          summary: S.live.length + (S.live.length === 1 ? ' file being written' : ' files being written')}];
+      }
+    }
+    var same = function(a, b){ return a && b && (a.bare || b.bare ? a.bare === b.bare : a.lib ? a.name === b.name : a.commit === b.commit); };
     $('versionList').innerHTML = list.map(function(v, i){
-      return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.live ? ' live' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button"><b>'+esc(v.name)+'</b>'+
+      return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.live ? ' live' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button">'+
+        '<b>'+esc(v.name)+(v.live ? '<i class="now">Now</i>' : '')+'</b>'+
         (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+'</button>';
     }).join('');
     Array.prototype.forEach.call($('versionList').querySelectorAll('[data-v]'), function(b){
@@ -388,8 +398,23 @@
     if(S.path) paintLines();
   }
 
+  /* the version being built is the last one, so that is the one the work on
+     disk belongs to, however it was picked: from the library or from git */
+  function isLive(v){
+    if(!v || v.bare || !(S.live && S.live.length) || !S.project) return false;
+    var vs = S.project.versions;
+    return !!vs.length && v.name === vs[vs.length - 1].name;
+  }
+
   function markVersion(v){
-    return OPEGit.changes(v).then(function(files){
+    var get = isLive(v)
+      ? Promise.all([OPEGit.changes(v), OPEGit.changes({live: true})]).then(function(both){
+          var seen = {}, out = [];
+          both[1].concat(both[0]).forEach(function(f){ if(!seen[f.path]){ seen[f.path] = true; out.push(f); } });
+          return out;
+        })
+      : OPEGit.changes(v);
+    return get.then(function(files){
       if(S.version !== v) return;
       S.changed = {}; S.dirs = {}; S.gone = [];
       files.forEach(function(f){
@@ -484,9 +509,13 @@
     var tag = $('lineTag');
     var clear = function(){ S.deco = S.editor.deltaDecorations(S.deco, []); tag.classList.add('hidden'); };
     if(!S.version || !S.repo || !S.changed[S.path]) return clear();
-    var v = S.version, path = S.path;
+    var picked = S.version, path = S.path;
+    /* the version to ask, which for the one being built is that version plus
+       whatever is on disk. It is a copy, so what is compared below is the
+       version the reader picked, not this. */
+    var v = picked.bare ? picked : isLive(picked) ? Object.assign({}, picked, {live: true}) : picked;
     OPEGit.lines(v, path).then(function(nums){
-      if(S.version !== v || S.path !== path) return;
+      if(S.version !== picked || S.path !== path) return;
       nums.sort(function(a, b){ return a - b; });
       var set = {}; nums.forEach(function(n){ set[n] = true; });
       var m = S.monaco, list = [];
@@ -498,7 +527,12 @@
       S.deco = S.editor.deltaDecorations(S.deco, list);
       tag.textContent = nums.length ? nums.length + ' lines from ' + v.name : 'nothing from ' + v.name + ' left in this file';
       tag.classList.remove('hidden');
-      if(nums.length) S.editor.revealLineInCenterIfOutsideViewport(nums[0]);
+      /* JUMP ONCE, NOT ON EVERY REPAINT.
+         Now repaints every time a file is saved, and it was pulling the page
+         back to the first green line each time, so scrolling was impossible
+         while an AI coder was writing. */
+      var key = (v.name || '') + '|' + path;
+      if(nums.length && S.jumped !== key){ S.jumped = key; S.editor.revealLineInCenterIfOutsideViewport(nums[0]); }
     });
   }
 

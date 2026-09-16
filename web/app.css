@@ -66,9 +66,9 @@ html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .ver.sel{border-color:var(--ink)}
 /* NOW: the version that is still being written. It is the only row that is
    green on its own, because it is the only one that changes while you watch */
-.ver.live b{color:var(--green)}
-.ver.live b::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
-  background:var(--green);margin-right:6px;vertical-align:middle;animation:opePulse 1.6s ease-in-out infinite}
+.ver .now{display:inline-block;margin-left:8px;font-style:normal;font-size:11px;color:var(--green);letter-spacing:.04em}
+.ver .now::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--green);margin-right:5px;vertical-align:middle;animation:opePulse 1.6s ease-in-out infinite}
 .ver.live.sel{border-color:var(--green)}
 @keyframes opePulse{0%,100%{opacity:1}50%{opacity:.25}}
 .empty{padding:10px 12px;color:var(--sub);white-space:normal}

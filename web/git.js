@@ -157,7 +157,16 @@
 
   /* the line numbers, in the file as it is on disk now, that the version wrote */
   function lines(v, path){
-    if(v.live) return liveLines(path);
+    if(v.bare) return liveLines(path);
+    if(v.live) return Promise.all([liveLines(path), linesOfVersion(v, path)]).then(function(both){
+      var seen = {}, out = [];
+      both[0].concat(both[1]).forEach(function(n){ if(!seen[n]){ seen[n] = true; out.push(n); } });
+      return out;
+    });
+    return linesOfVersion(v, path);
+  }
+
+  function linesOfVersion(v, path){
     return Promise.all([commitsIn(v), git(['blame', '--porcelain', '--', path])]).then(function(res){
       var set = res[0], r = res[1], out = [];
       if(r.code !== 0) return out;
