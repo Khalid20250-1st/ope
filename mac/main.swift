@@ -180,6 +180,27 @@ final class Project {
    this Mac, the same for every project, and the same file the Node twin uses. */
 enum Learn {
   static let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/ope/learn.json")
+  static let course = URL(fileURLWithPath: Project.real(FileManager.default.homeDirectoryForCurrentUser.path) + "/Desktop/OPE Course")
+  static let readme = "# OPE Course\n\nYour practice work from OPE, Learning while building. Every task has its own folder with task.md (what to do) and test.cjs (what OPE runs to check it). This folder is its own git history, so saving checkpoints here never touches your projects.\n"
+
+  /* the folder, its own git history and a first save signed as OPE, so it works
+     before git knows the person's name */
+  static func startCourse(_ c: Project) -> String {
+    let fm = FileManager.default
+    try? fm.createDirectory(at: course, withIntermediateDirectories: true)
+    if !fm.fileExists(atPath: course.appendingPathComponent(".git").path) {
+      try? readme.write(to: course.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
+      _ = c.git(["init"])
+      _ = c.git(["add", "-A"])
+      let p = Process()
+      p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+      p.arguments = ["-C", course.path, "-c", "user.name=OPE", "-c", "user.email=ope@localhost", "commit", "-m", "OPE Course: the start"]
+      p.standardOutput = FileHandle.nullDevice
+      p.standardError = FileHandle.nullDevice
+      try? p.run(); p.waitUntilExit()
+    }
+    return course.path
+  }
   static let runOK: Set<String> = ["node", "npm", "npx", "python3", "python", "pytest", "go", "cargo", "swift", "deno", "bun"]
 
   static func get() -> [String: Any] {
@@ -486,6 +507,10 @@ func installSystem(into root: URL) -> [String: [String]] {
 
 final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
   let project: Project
+  /* the OPE Course folder on the Desktop: the same file and git commands as a
+     project, pointed at the practice work instead (where: "course") */
+  let course: Project = { let c = Project(); c.root = Learn.course; return c }()
+  func at(_ body: [String: Any]) -> Project { (body["where"] as? String) == "course" ? course : project }
   weak var window: NSWindow?
   init(_ p: Project) { project = p }
 
@@ -527,7 +552,7 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
     case "git":
       let args = (body["args"] as? [Any] ?? []).map { "\($0)" }
       DispatchQueue.global(qos: .userInitiated).async {
-        let r = self.project.git(args)
+        let r = self.at(body).git(args)
         DispatchQueue.main.async { reply(r) }
       }
 
@@ -538,20 +563,27 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
       }
 
     case "read":
-      do { reply(try project.read(body["path"] as? String ?? "")) } catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
+      do { reply(try at(body).read(body["path"] as? String ?? "")) } catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
 
     case "write":
-      do { try project.write(body["path"] as? String ?? "", body["text"] as? String ?? ""); reply(["ok": true]) }
+      do { try at(body).write(body["path"] as? String ?? "", body["text"] as? String ?? ""); reply(["ok": true]) }
       catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
 
     case "learnGet":
       reply(Learn.get())
 
+    case "courseInit":
+      reply(["path": Learn.startCourse(course)])
+
+    case "courseOpen":
+      do { NSWorkspace.shared.open(try course.inside(body["path"] as? String ?? "")); reply(["ok": true]) }
+      catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
+
     case "learnSave":
       do { try Learn.save(body["data"] ?? [String: Any]()); reply(["ok": true]) } catch { fail("Your progress could not be saved.") }
 
     case "run":
-      guard let root = project.root else { fail("Open a project first."); return }
+      guard let root = at(body).root else { fail("Open a project first."); return }
       let args = (body["args"] as? [Any] ?? []).map { "\($0)" }
       DispatchQueue.global(qos: .userInitiated).async {
         do { let r = try Learn.run(args, in: root); DispatchQueue.main.async { reply(r) } }

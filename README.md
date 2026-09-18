@@ -127,7 +127,9 @@ goes into a file and your AI coder grades it on its next run.
 - **Nothing too hard reaches you.** The AI says how hard a piece is, OPE's own
   rules check it, and the harder of the two is used.
 - **A practice bank** of 48 tasks, each with its own test, for the days your
-  project has nothing at your skill.
+  project has nothing at your skill. Practice work goes in an **OPE Course**
+  folder on your Desktop, with its own git history, and never touches your
+  projects.
 - **No jumping.** Every stage opens with a door test: pass it and the whole stage
   counts.
 - **From Stage 4 up your AI coder is switched off** and you write the code.

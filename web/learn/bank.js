@@ -32,13 +32,13 @@ window.OPEBank = [
  solve: {'list.txt': 'list.txt\ntask.md\ntest.cjs\n'}},
 
 {id: 'git-save', skill: 'git-save', kind: 'check', title: 'Save a checkpoint',
- ask: 'Git keeps every saved version of your project. Change the words in note.txt, then save a checkpoint from the terminal in your project folder:\n  git add -A\n  git commit -m "practice: my first checkpoint"\nThe message has to start with the word practice.',
+ ask: 'Git keeps every saved version of your project. Change the words in note.txt, then save a checkpoint from the terminal, in your OPE Course folder on the Desktop:\n  git add -A\n  git commit -m "practice: my first checkpoint"\nThe message has to start with the word practice.',
  files: {'note.txt': 'Change these words.\n'},
  test: "check('a checkpoint starting with practice saved note.txt', () => {\n  const rel = path.relative(root, path.join(here, 'note.txt'));\n  const out = sh('git log -n 30 --format=%s -- \"' + rel + '\"');\n  assert.ok(/^practice/m.test(out), 'no checkpoint starting with practice has saved note.txt yet');\n  assert.ok(!/^Change these words/.test(fs.readFileSync(path.join(here, 'note.txt'), 'utf8')), 'note.txt still has the words it started with');\n});",
  solve: {files: {'note.txt': 'My own words.\n'}, commit: 'practice: my first checkpoint'}},
 
 {id: 'git-history', skill: 'git-history', kind: 'check', title: 'Read the history',
- ask: 'Find the message of the very first checkpoint ever saved in this project and write it, exactly, into answer.txt. In the terminal:  git log --reverse --format=%s  and the top line is the first one.',
+ ask: 'Find the message of the very first checkpoint ever saved in your OPE Course folder and write it, exactly, into answer.txt. In the terminal:  git log --reverse --format=%s  and the top line is the first one.',
  test: "check('answer.txt holds the first message', () => {\n  const f = path.join(here, 'answer.txt');\n  assert.ok(fs.existsSync(f), 'there is no answer.txt yet');\n  const first = sh('git log --reverse --format=%s').split('\\n')[0].trim();\n  assert.strictEqual(fs.readFileSync(f, 'utf8').trim(), first, 'that is not the first message');\n});",
  solve: function(c){ return c.git(['log', '--reverse', '--format=%s']).then(function(r){ return {'answer.txt': (r.out.split('\n')[0] || '') + '\n'}; }); }},
 
@@ -279,7 +279,7 @@ window.OPEBank = [
  solve: {'solution.cjs': "function hasDuplicates(list) {\n  const seen = new Set();\n  for (const item of list) {\n    if (seen.has(item)) return true;\n    seen.add(item);\n  }\n  return false;\n}\n\nmodule.exports = { hasDuplicates };\n"}},
 
 {id: 'elite-system', skill: 'elite-system', kind: 'explain', title: 'Explain your own system',
- ask: 'Explain the project this folder is in, as if to a new engineer on their first day: every main part and its job, what happens from the moment a person does the main thing until they see the result, where the data lives, and the one part you would rewrite first and why. Your AI coder checks it against the real code.',
+ ask: 'Explain the project you are building with OPE, as if to a new engineer on their first day: every main part and its job, what happens from the moment a person does the main thing until they see the result, where the data lives, and the one part you would rewrite first and why. Send it from that project, so your AI coder checks it against the real code.',
  model: 'A good answer names the real folders and files, follows one real request through them in order, says where data is stored and who can read it, and picks a weak part with a reason the code actually supports.'},
 
 {id: 'door-7', door: 7, kind: 'explain', title: 'Stage 7 door test',

@@ -28,6 +28,8 @@ let root = process.env.OPE_ROOT || '';
 /* the library of project folders, kept on this machine only */
 const LIB = join(HOME, '.config', 'ope', 'library.json');
 const LEARN = join(HOME, '.config', 'ope', 'learn.json');
+const COURSE = join(HOME, 'Desktop', 'OPE Course');
+const COURSE_README = '# OPE Course\n\nYour practice work from OPE, Learning while building. Every task has its own folder with task.md (what to do) and test.cjs (what OPE runs to check it). This folder is its own git history, so saving checkpoints here never touches your projects.\n';
 const RUN_OK = new Set(['node', 'npm', 'npx', 'python3', 'python', 'pytest', 'go', 'cargo', 'swift', 'deno', 'bun']);
 function library(){ try { return JSON.parse(readFileSync(LIB, 'utf8')); } catch { return []; } }
 function saveLibrary(items){ mkdirSync(dirname(LIB), { recursive: true }); writeFileSync(LIB, JSON.stringify(items, null, 2)); return items; }
@@ -44,16 +46,21 @@ const GIT_OK = new Set(['for-each-ref', 'log', 'diff', 'blame', 'rev-list', 'rev
 const SKIP = new Set(['.git', 'node_modules', '.next', 'dist', 'build', '.build', 'DerivedData', '.venv',
   'venv', '__pycache__', '.cache', 'Pods', '.turbo', '.wrangler', 'coverage']);
 
-function inside(p){
-  const full = resolve(root, p || '');
-  if (full !== root && !full.startsWith(root + sep)) throw new Error('That path is outside the project.');
+/* where a command works: the open project, or, with where: 'course', the OPE
+   Course folder on the Desktop where the practice work lives */
+function baseOf(b){ return b && b.where === 'course' ? COURSE : root; }
+function inside(p, b){
+  const top = baseOf(b);
+  if (!top) throw new Error('Open a project first.');
+  const full = resolve(top, p || '');
+  if (full !== top && !full.startsWith(top + sep)) throw new Error('That path is outside the project.');
   return full;
 }
 
-function git(args){
+function git(args, at){
   return new Promise(done => {
     if (!GIT_OK.has(args[0])) return done({ code: 1, out: '', err: 'not allowed' });
-    execFile('git', ['-C', root, ...args], { maxBuffer: 64 * 1024 * 1024 }, (e, out, err) =>
+    execFile('git', ['-C', at || root, ...args], { maxBuffer: 64 * 1024 * 1024 }, (e, out, err) =>
       done({ code: e ? (e.code ?? 1) : 0, out: String(out || ''), err: String(err || '') }));
   });
 }
@@ -172,31 +179,51 @@ async function command(b){
     }
     case 'pick': return { root: '', manual: true };
     case 'prompt': return { text: readFileSync(PROMPT, 'utf8') };
-    case 'git': return root ? git((b.args || []).map(String)) : { code: 1, out: '', err: 'no project' };
+    case 'git': return baseOf(b) ? git((b.args || []).map(String), baseOf(b)) : { code: 1, out: '', err: 'no project' };
     case 'list': { const out = []; if (root) await walk(root, out, 0); return { files: out.sort() }; }
     case 'read': {
-      const full = inside(b.path);
+      const full = inside(b.path, b);
       const s = await stat(full);
       if (s.size > 2 * 1024 * 1024) return { tooBig: true, size: s.size };
       const buf = await readFile(full);
       if (buf.subarray(0, 8000).includes(0)) return { binary: true, size: s.size };
       return { text: buf.toString('utf8'), size: s.size };
     }
-    case 'write': { const to = inside(b.path); mkdirSync(dirname(to), { recursive: true }); await writeFile(to, String(b.text ?? ''), 'utf8'); return { ok: true }; }
+    case 'write': { const to = inside(b.path, b); mkdirSync(dirname(to), { recursive: true }); await writeFile(to, String(b.text ?? ''), 'utf8'); return { ok: true }; }
     /* LEARNING. Where you are, what you passed, skipped and keep getting wrong,
        kept on this machine only, the same for every project you open */
+    /* THE OPE COURSE FOLDER. The practice work has its own folder on the
+       Desktop, its own git history, and never touches anybody's project */
+    case 'courseInit': {
+      mkdirSync(COURSE, { recursive: true });
+      if (!existsSync(join(COURSE, '.git'))) {
+        writeFileSync(join(COURSE, 'README.md'), COURSE_README);
+        await git(['init'], COURSE);
+        await git(['add', '-A'], COURSE);
+        /* the first save is signed as OPE, so it works before git knows your name */
+        await new Promise(ok => execFile('git', ['-C', COURSE, '-c', 'user.name=OPE', '-c', 'user.email=ope@localhost',
+          'commit', '-m', 'OPE Course: the start'], () => ok()));
+      }
+      return { path: COURSE };
+    }
+    case 'courseOpen': {
+      const to = inside(b.path || '', { where: 'course' });
+      const opener = platform() === 'darwin' ? 'open' : platform() === 'win32' ? 'explorer' : 'xdg-open';
+      execFile(opener, [to], () => {});
+      return { ok: true };
+    }
     case 'learnGet': { try { return { data: JSON.parse(readFileSync(LEARN, 'utf8')) }; } catch { return { data: {} }; } }
     case 'learnSave': { mkdirSync(dirname(LEARN), { recursive: true }); writeFileSync(LEARN, JSON.stringify(b.data || {}, null, 2)); return { ok: true }; }
     /* a test, run in the project folder. Only the programs tests are run with,
        never a shell, and never for longer than a minute */
     case 'run': {
-      if (!root) throw new Error('Open a project first.');
+      if (!baseOf(b)) throw new Error('Open a project first.');
       const args = (b.args || []).map(String);
       if (!RUN_OK.has(args[0])) throw new Error('OPE only runs tests with ' + [...RUN_OK].join(', ') + '.');
       /* node is the one this app already carries, so a test runs even where
          Node was never installed (the Windows app is Node inside Electron) */
       const exe = args[0] === 'node' ? process.execPath : args[0];
-      return await new Promise(done => execFile(exe, args.slice(1), { cwd: root, timeout: 60000, maxBuffer: 8 * 1024 * 1024,
+      return await new Promise(done => execFile(exe, args.slice(1), { cwd: baseOf(b), timeout: 60000, maxBuffer: 8 * 1024 * 1024,
         env: Object.assign({}, process.env, { ELECTRON_RUN_AS_NODE: '1' }), shell: platform() === 'win32' && args[0] !== 'node' },
         (e, out, err) => done({ code: e ? (typeof e.code === 'number' ? e.code : 1) : 0, out: String(out || ''),
           err: String(err || '') + (e && e.killed ? '\nStopped after a minute.' : '') })));

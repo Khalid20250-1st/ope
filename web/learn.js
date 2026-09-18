@@ -80,8 +80,16 @@
     return call('read', {path: path}).then(function(r){ try { return JSON.parse(r.text || ''); } catch(e){ return null; } })
       .catch(function(){ return null; });
   }
-  function readText(path){ return call('read', {path: path}).then(function(r){ return r.text || ''; }).catch(function(){ return null; }); }
-  function write(path, text){ return call('write', {path: path, text: text}); }
+  function readText(path, where){ return call('read', {path: path, where: where}).then(function(r){ return r.text || ''; }).catch(function(){ return null; }); }
+  function write(path, text, where){ return call('write', {path: path, text: text, where: where}); }
+
+  /* THE OPE COURSE. Practice work never goes into anybody's project. It lives
+     in its own folder on the Desktop, with its own git history, made the first
+     time it is needed. Pieces of your own project stay in your project. */
+  var C = 'course';
+  function course(){
+    return L.course ? Promise.resolve(L.course) : call('courseInit').then(function(r){ L.course = r.path; return r.path; });
+  }
 
   /* the tags the AI wrote, each checked against the file it points at */
   function tags(){
@@ -149,7 +157,7 @@
       '- Pieces must be small, safe and have a test. Never tag login, payments, passwords or anything that could lose data.',
       '',
       '## 2. Grade their answers',
-      'When a file in `ope-learn/answers/` says `Verdict: waiting`, read the question, the code and their answer. Change that line to `Verdict: pass` or `Verdict: fail`, and add a `## Why` section in plain words: what they got right, what they missed. Pass means they understood it, not that the wording is perfect. For `elite-system`, check what they say against the real code.',
+      'When a file in `ope-learn/answers/`' + (L.course ? ', or in `' + L.course + '/answers/`,' : '') + ' says `Verdict: waiting`, read the question, the code and their answer. Change that line to `Verdict: pass` or `Verdict: fail`, and add a `## Why` section in plain words: what they got right, what they missed. Pass means they understood it, not that the wording is perfect. For `elite-system`, check what they say against the real code.',
       '',
       '## 3. Stage 4 and above: you are off',
       off ? '**This applies now.** Do not write, change or fix code in this project for them. Explain, point at the line, ask a question that leads them there, but they type the code. If they ask you to write it, say they are at Stage ' + c.stage + ' and the code is theirs to write. You may still write tests and tags, and plant a bug when a Debugger task asks you to.'
@@ -208,7 +216,7 @@
   }
 
   /* ------------------------------------------------------------ doing a piece */
-  function practiceDir(t){ return DIR + '/practice/' + t.id; }
+  function practiceDir(t){ return t.id; }
   function comment(file, text){
     var ext = (file.split('.').pop() || '').toLowerCase();
     if(/^(py|sh|zsh|bash|rb|yml|yaml|toml|r|pl)$/.test(ext)) return '# ' + text;
@@ -225,13 +233,13 @@
     m.work = p; m.reviewed = !!p.review;
     if(p.source === 'bank'){
       var t = BANK.filter(function(x){ return x.id === p.id; })[0], dir = practiceDir(t);
-      return readText(dir + '/task.md').then(function(have){
+      return course().then(function(){ return readText(dir + '/task.md', C); }).then(function(have){
         /* a weak spot coming back starts clean, not with last time's answer in it */
         if(have != null && !p.review) return;
         var files = Object.assign({'task.md': '# ' + t.title + '\n\n' + t.ask + '\n'}, t.files || {});
         if(t.kind === 'check') files['test.cjs'] = BANK.testFile(t.test);
         return Object.keys(files).reduce(function(ch, f){
-          return ch.then(function(){ return write(dir + '/' + f, files[f]); });
+          return ch.then(function(){ return write(dir + '/' + f, files[f], C); });
         }, Promise.resolve());
       });
     }
@@ -251,9 +259,10 @@
     });
   }
 
-  function answerPath(p){ return DIR + '/answers/' + p.id + '.md'; }
+  function answerPath(p){ return p.source === 'bank' ? 'answers/' + p.id + '.md' : DIR + '/answers/' + p.id + '.md'; }
+  function answerWhere(p){ return p.source === 'bank' ? C : undefined; }
   function verdict(p){
-    return readText(answerPath(p)).then(function(t){
+    return readText(answerPath(p), answerWhere(p)).then(function(t){
       if(t == null) return null;
       var v = /^Verdict:\s*(pass|fail|waiting)/mi.exec(t);
       var why = /##\s*Why\s*\n([\s\S]*)$/i.exec(t);
@@ -279,11 +288,11 @@
       text,
       ''
     ].join('\n');
-    return write(answerPath(p), body);
+    return write(answerPath(p), body, answerWhere(p));
   }
 
   function testArgs(p){
-    if(p.source === 'bank') return ['node', practiceDir({id: p.id}) + '/test.cjs'];
+    if(p.source === 'bank') return ['node', p.id + '/test.cjs'];
     return String(p.tag.test || '').match(/"[^"]*"|'[^']*'|\S+/g).map(function(a){ return a.replace(/^["']|["']$/g, ''); });
   }
 
@@ -337,10 +346,10 @@
       var t = BANK.filter(function(x){ return x.id === p.id; })[0], dir = practiceDir(t);
       if(t.kind === 'check' && t.solve){
         go = Promise.resolve(typeof t.solve === 'function'
-          ? t.solve({here: (root() + '/' + dir), git: function(a){ return call('git', {args: a}); }}) : t.solve).then(function(sol){
+          ? t.solve({here: L.course + '/' + dir, git: function(a){ return call('git', {args: a, where: C}); }}) : t.solve).then(function(sol){
           var files = sol.files || (sol.commit ? {} : sol);
-          return Object.keys(files).reduce(function(ch, f){ return ch.then(function(){ return write(dir + '/' + f, files[f]); }); }, Promise.resolve())
-            .then(function(){ if(sol.commit) return call('git', {args: ['add', '-A', '--', dir]}).then(function(){ return call('git', {args: ['commit', '-m', sol.commit, '--', dir]}); }); });
+          return Object.keys(files).reduce(function(ch, f){ return ch.then(function(){ return write(dir + '/' + f, files[f], C); }); }, Promise.resolve())
+            .then(function(){ if(sol.commit) return call('git', {args: ['add', '-A', '--', dir], where: C}).then(function(){ return call('git', {args: ['commit', '-m', sol.commit, '--', dir], where: C}); }); });
         });
       }
     }
@@ -353,6 +362,7 @@
       var t = BANK.filter(function(x){ return x.id === p.id; })[0];
       var file = t.files && Object.keys(t.files).filter(function(f){ return !/\.(md|txt)$/.test(f) || f === 'why.md'; })[0];
       return {title: t.title, ask: t.ask, kind: t.kind, where: file ? practiceDir(t) + '/' + file : practiceDir(t) + '/task.md',
+              folder: t.id, full: (L.course || 'OPE Course') + '/' + t.id,
               code: file && t.files[file], model: t.model, from: p.door != null ? 'The door test' : p.review ? 'Back to a weak spot' : 'The practice bank'};
     }
     var tag = p.tag, kind = tag.kind || 'write';
@@ -420,11 +430,17 @@
     var box = $('lWork'); if(!box) return;
     var i = info(p);
     var explain = i.kind === 'explain';
-    return (explain ? verdict(p) : Promise.resolve(null)).then(function(v){
+    /* a practice piece from before the OPE Course folder existed is written
+       there now, so the folder the card points at is really there */
+    var ready = p.source === 'bank'
+      ? course().then(function(){ i = info(p); return readText(p.id + '/task.md', C); }).then(function(have){ return have == null ? setUp(p).then(keep) : null; })
+      : Promise.resolve();
+    return ready.then(function(){ return explain ? verdict(p) : null; }).then(function(v){
       box = $('lWork'); if(!box) return;
       var html = '<p class="k">' + esc(i.from.toUpperCase()) + '</p><h2>' + esc(i.title) + '</h2><p class="lask">' + esc(i.ask) + '</p>'+
         (i.stages ? '<p class="small">How hard: ' + esc(i.stages) + '. OPE uses the harder one.</p>' : '')+
-        '<div class="acts3"><button class="btn" type="button" id="lOpen">Open ' + esc(i.where.split('/').pop()) + '</button>';
+        (i.folder ? '<p class="small">Your folder: <b class="path">' + esc(i.full) + '</b></p>' : '')+
+        '<div class="acts3"><button class="btn" type="button" id="lOpen">' + (i.folder ? 'Open the folder' : 'Open ' + esc(i.where.split('/').pop())) + '</button>';
       if(explain){
         if(v && v.state === 'waiting'){
           html += '</div><p class="wait">Sent. Tell your AI coder: <b>grade my OPE answer</b>. The verdict shows here when it has.</p>';
@@ -441,7 +457,10 @@
         (L.last && L.last.id === p.id ? '<pre class="out ' + (L.last.code === 0 ? 'ok' : 'no') + '">' + esc(L.last.text) + '</pre>' : '');
       box.innerHTML = html;
       var q = function(id){ return document.getElementById(id); };
-      if(q('lOpen')) q('lOpen').onclick = function(){ window.OPE.openFile(i.where, i.line); };
+      if(q('lOpen')) q('lOpen').onclick = function(){
+        if(i.folder) return call('courseOpen', {path: i.folder}).catch(function(e){ OPEBridge.report(e.message); });
+        window.OPE.openFile(i.where, i.line);
+      };
       if(q('lRun')) q('lRun').onclick = function(){ L.note = null; check(p); };
       if(q('lSend')) q('lSend').onclick = function(){
         var t = q('lAns').value.trim(); if(t.length < 10) return q('lAns').focus();
@@ -459,7 +478,7 @@
 
   function check(p){
     var b = document.getElementById('lRun'); if(b){ b.disabled = true; b.textContent = 'Checking...'; }
-    return call('run', {args: testArgs(p)}).then(function(r){
+    return call('run', {args: testArgs(p), where: p.source === 'bank' ? C : undefined}).then(function(r){
       var text = (r.out || '') + (r.err ? '\n' + r.err : '');
       L.last = {id: p.id, code: r.code, text: text.trim() || (r.code === 0 ? 'Passed.' : 'It did not pass.')};
       if(r.code === 0){ L.note = {head: 'PASSED', text: L.last.text, cls: 'out ok'}; L.last = null; return pass(p).then(render); }
@@ -483,12 +502,12 @@
 
   function setMode(v){
     L.data.modes[root()] = v;
-    return keep().then(function(){ return v === 'learn' ? hookAgents() : null; }).then(syncMd).then(render)
+    return keep().then(function(){ return v === 'learn' ? course().then(hookAgents) : null; }).then(syncMd).then(render)
       .catch(function(e){ OPEBridge.report(e.message); });
   }
 
   /* ------------------------------------------------------------ in and out */
-  function show(){ L.open = true; return (L.data ? Promise.resolve() : load()).then(render); }
+  function show(){ L.open = true; return (L.data ? Promise.resolve() : load()).then(function(){ return mode() === 'learn' ? course() : null; }).then(render); }
   function hide(){ L.open = false; }
   var redraw = null;
   OPEBridge.onChange(function(ev){

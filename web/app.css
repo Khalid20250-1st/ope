@@ -277,3 +277,4 @@ html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .card2 .wait b{color:var(--ink)}
 .card2 .bad{margin:12px 0 0;color:#ff8a80}
 .lrn .weak{margin:0 0 6px;color:var(--sub);font-size:12px}
+.card2 .small .path{color:var(--ink);font-weight:400;word-break:break-all}
