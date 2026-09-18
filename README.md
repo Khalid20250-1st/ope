@@ -136,6 +136,8 @@ goes into a file and your AI coder grades it on its next run.
 - **Just do it for me** is always there. It puts the code back, records the skip,
   and the skill comes back until you pass it for real.
 
+![Learning while building: a piece of your own project, cut out for you to write back](docs/learn.png)
+
 Your progress is kept on this computer only, in `~/.config/ope/learn.json`.
 Tests run on your machine and grading uses the AI coder you already have, so
 learning costs nothing. The practice tests need Node on a Mac; the Windows app

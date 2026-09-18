@@ -5,7 +5,7 @@ OPE shows it straight away. `Planning` while it is talked through, `Building`
 while it is worked on, `Done` when it is finished.
 
 ## 6.1 Learn while building
-Building
+Done
 A setting with two modes, Building and Learning while building. Learning teaches you to code on your own project, from barely touching a laptop to elite: a fixed skill list in eight stages, pieces of your own code cut out for you with a test, a practice bank when your project has nothing at your level, no jumping but a test at each stage door, the AI coder switched off from Stage 4 up, and a "just do it for me" button that records the skip.
 
 1 none
