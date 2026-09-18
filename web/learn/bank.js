@@ -42,8 +42,8 @@ window.OPEBank = [
  test: "check('answer.txt holds the first message', () => {\n  const f = path.join(here, 'answer.txt');\n  assert.ok(fs.existsSync(f), 'there is no answer.txt yet');\n  const first = sh('git log --reverse --format=%s').split('\\n')[0].trim();\n  assert.strictEqual(fs.readFileSync(f, 'utf8').trim(), first, 'that is not the first message');\n});",
  solve: function(c){ return c.git(['log', '--reverse', '--format=%s']).then(function(r){ return {'answer.txt': (r.out.split('\n')[0] || '') + '\n'}; }); }},
 
-{id: 'door-0', door: 0, kind: 'check', title: 'Stage 0 door test',
- ask: 'All of Stage 0 at once. Make a folder called door with a file hello.txt in it that says your name. Then save a checkpoint whose message starts with  door 0. Finally write the path of the door folder into where.txt, here in the practice folder.',
+{id: 'door-0', door: 0, kind: 'check', title: 'Part 0 door test',
+ ask: 'All of Part 0 at once. Make a folder called door with a file hello.txt in it that says your name. Then save a checkpoint whose message starts with  door 0. Finally write the path of the door folder into where.txt, here in the practice folder.',
  test: "const d = path.join(here, 'door');\ncheck('door/hello.txt has your name', () => {\n  assert.ok(fs.existsSync(path.join(d, 'hello.txt')), 'there is no door/hello.txt');\n  assert.ok(fs.readFileSync(path.join(d, 'hello.txt'), 'utf8').trim(), 'hello.txt is empty');\n});\ncheck('where.txt holds the path of door', () => {\n  const f = path.join(here, 'where.txt');\n  assert.ok(fs.existsSync(f), 'there is no where.txt');\n  assert.strictEqual(fs.realpathSync(fs.readFileSync(f, 'utf8').trim()), fs.realpathSync(d));\n});\ncheck('a checkpoint starting with door 0 saved it', () => {\n  assert.ok(/^door 0/m.test(sh('git log -n 30 --format=%s -- \"' + path.relative(root, d) + '\"')), 'no checkpoint starting with door 0 has saved the door folder');\n});",
  solve: function(c){ var o = {files: {}, commit: 'door 0: my folder'}; o.files['door/hello.txt'] = 'Me\n'; o.files['where.txt'] = c.here + '/door\n'; return o; }},
 
@@ -73,7 +73,7 @@ window.OPEBank = [
  files: {'sample.js': "const cart = [];\n\nfunction add(name, price) {\n  cart.push({ name, price });\n}\n\nfunction total() {\n  let sum = 0;\n  for (const item of cart) sum += item.price;\n  return sum;\n}\n\nadd('Coffee', 3);\nadd('Cake', 4);\nconsole.log(cart.length + ' things, $' + total());\n"},
  model: 'The two functions are only defined at first, nothing runs inside them. Then add runs twice, putting Coffee (3) and Cake (4) into cart. The last line asks for cart.length, 2, and runs total, which adds 3 and 4. It prints "2 things, $7".'},
 
-{id: 'door-1', door: 1, kind: 'explain', title: 'Stage 1 door test',
+{id: 'door-1', door: 1, kind: 'explain', title: 'Part 1 door test',
  ask: 'Read sample.js. What does it print? Explain every function, what each if decides and what the loop does, in order.',
  files: {'sample.js': "const people = [\n  { name: 'Sam', age: 15 },\n  { name: 'Lee', age: 22 },\n  { name: 'Ana', age: 17 }\n];\n\nfunction label(person) {\n  if (person.age >= 18) return person.name + ' (adult)';\n  if (person.age >= 16) return person.name + ' (16+)';\n  return person.name + ' (child)';\n}\n\nlet adults = 0;\nfor (const p of people) {\n  if (p.age >= 18) adults++;\n  console.log(label(p));\n}\nconsole.log(adults + ' adult');\n"},
  model: 'The loop goes through the three people in order. For each it counts adults and prints label. Sam is 15, so "Sam (child)". Lee is 22, adults becomes 1, "Lee (adult)". Ana is 17, "Ana (16+)". Then "1 adult".'},
@@ -109,7 +109,7 @@ window.OPEBank = [
  test: "const { countdown } = load('solution.cjs');\ncheck('5, 4, 3, 2, 1, 0', () => assert.deepStrictEqual(countdown(), [5, 4, 3, 2, 1, 0]));",
  solve: {'solution.cjs': "function countdown() {\n  const out = [];\n  for (let i = 5; i >= 0; i--) {\n    out.push(i);\n  }\n  return out;\n}\n\nmodule.exports = { countdown };\n"}},
 
-{id: 'door-2', door: 2, kind: 'check', title: 'Stage 2 door test',
+{id: 'door-2', door: 2, kind: 'check', title: 'Part 2 door test',
  ask: 'solution.cjs is a small shop. Make four changes: opening time 8 instead of 9; open on Saturday as well as weekdays; the sign says "Come in, we are open" when open; and add Bagel at $2 to ITEMS.',
  files: {'solution.cjs': "const OPENS = 9;\nconst CLOSES = 17;\nconst ITEMS = [{ name: 'Muffin', price: 3 }];\n\nfunction isOpen(day, hour) {\n  const workday = day !== 'Saturday' && day !== 'Sunday';\n  return workday && hour >= OPENS && hour < CLOSES;\n}\n\nfunction sign(day, hour) {\n  return isOpen(day, hour) ? 'Open' : 'Closed';\n}\n\nmodule.exports = { isOpen, sign, ITEMS };\n"},
  test: "const s = load('solution.cjs');\ncheck('open at 8 on a Monday', () => assert.strictEqual(s.isOpen('Monday', 8), true));\ncheck('open on Saturday', () => assert.strictEqual(s.isOpen('Saturday', 10), true));\ncheck('still shut on Sunday', () => assert.strictEqual(s.isOpen('Sunday', 10), false));\ncheck('still shut at 17', () => assert.strictEqual(s.isOpen('Monday', 17), false));\ncheck('the sign', () => { assert.strictEqual(s.sign('Monday', 10), 'Come in, we are open'); assert.strictEqual(s.sign('Sunday', 10), 'Closed'); });\ncheck('Bagel at $2', () => assert.deepStrictEqual(s.ITEMS.find(i => i.name === 'Bagel'), { name: 'Bagel', price: 2 }));",
@@ -146,7 +146,7 @@ window.OPEBank = [
  test: "const { parseAge } = load('solution.cjs');\ncheck('\"42\" is 42', () => assert.strictEqual(parseAge('42'), 42));\ncheck('\"abc\" is not a number', () => assert.throws(() => parseAge('abc'), /Not a number/));\ncheck('\"4.5\" is not a whole number', () => assert.throws(() => parseAge('4.5'), /Not a number/));\ncheck('\"200\" is too old', () => assert.throws(() => parseAge('200'), /Too old/));",
  solve: {'solution.cjs': "function parseAge(text) {\n  if (!/^\\d+$/.test(String(text).trim())) throw new Error('Not a number');\n  const n = Number(text);\n  if (n > 150) throw new Error('Too old');\n  return n;\n}\n\nmodule.exports = { parseAge };\n"}},
 
-{id: 'door-3', door: 3, kind: 'check', title: 'Stage 3 door test',
+{id: 'door-3', door: 3, kind: 'check', title: 'Part 3 door test',
  ask: 'Write receipt(items) in solution.cjs. items is a list like [{ name: "Tea", price: 2, qty: 3 }]. Give back { count, total, dearest }: count is how many things in all (add up qty), total is the money, dearest is the name of the item with the highest price. An empty list throws new Error("Nothing to pay for"). A price below 0 throws new Error("Bad price").',
  files: {'solution.cjs': "function receipt(items) {\n  // your code here\n}\n\nmodule.exports = { receipt };\n"},
  test: "const { receipt } = load('solution.cjs');\nconst items = [{ name: 'Tea', price: 2, qty: 3 }, { name: 'Cake', price: 5, qty: 1 }];\ncheck('count, total, dearest', () => assert.deepStrictEqual(receipt(items), { count: 4, total: 11, dearest: 'Cake' }));\ncheck('empty throws', () => assert.throws(() => receipt([]), /Nothing to pay for/));\ncheck('negative price throws', () => assert.throws(() => receipt([{ name: 'X', price: -1, qty: 1 }]), /Bad price/));",
@@ -184,7 +184,7 @@ window.OPEBank = [
  solve: {'solution.cjs': "const items = [];\nlet next = 1;\n\nfunction add(title) {\n  const item = { id: next++, title, done: false };\n  items.push(item);\n  return item;\n}\n\nfunction done(id) {\n  const item = items.find(i => i.id === id);\n  if (item) item.done = true;\n}\n\nfunction list() {\n  return items;\n}\n\nfunction remaining() {\n  return items.filter(i => !i.done).length;\n}\n\nmodule.exports = { add, done, list, remaining };\n",
           'mytest.cjs': "const assert = require('assert');\nconst todo = require('./solution.cjs');\n\nconst a = todo.add('milk');\ntodo.add('bread');\ntodo.done(a.id);\nassert.strictEqual(todo.remaining(), 1);\nconsole.log('my test passed');\n"}},
 
-{id: 'door-4', door: 4, kind: 'check', title: 'Stage 4 door test',
+{id: 'door-4', door: 4, kind: 'check', title: 'Part 4 door test',
  ask: 'From a blank file, build a bank account in solution.cjs. Export createAccount(), which gives back an object with deposit(amount), withdraw(amount), balance() and history(). Amounts must be more than 0, or throw new Error("Bad amount"). Taking out more than is there throws new Error("Not enough money"). history() gives back a list like [{ type: "deposit", amount: 10 }]. Two accounts never share money.',
  files: {'solution.cjs': ''},
  test: "const s = load('solution.cjs');\ncheck('deposit and withdraw', () => { const a = s.createAccount(); a.deposit(50); a.withdraw(20); assert.strictEqual(a.balance(), 30); });\ncheck('history', () => { const a = s.createAccount(); a.deposit(10); a.withdraw(4); assert.deepStrictEqual(a.history(), [{ type: 'deposit', amount: 10 }, { type: 'withdraw', amount: 4 }]); });\ncheck('not enough money', () => { const a = s.createAccount(); a.deposit(5); assert.throws(() => a.withdraw(6), /Not enough money/); assert.strictEqual(a.balance(), 5); });\ncheck('bad amounts', () => { const a = s.createAccount(); assert.throws(() => a.deposit(0), /Bad amount/); assert.throws(() => a.deposit(-3), /Bad amount/); });\ncheck('two accounts are separate', () => { const a = s.createAccount(), b = s.createAccount(); a.deposit(9); assert.strictEqual(b.balance(), 0); });",
@@ -221,7 +221,7 @@ window.OPEBank = [
  test: "const { withTax } = load('solution.cjs');\ncheck('tax is added', () => assert.deepStrictEqual(withTax([{ name: 'Tea', price: 2 }]), [{ name: 'Tea', price: 2.2 }]));\ncheck('the original cart is untouched', () => { const cart = [{ name: 'Tea', price: 2 }]; withTax(cart); assert.deepStrictEqual(cart, [{ name: 'Tea', price: 2 }]); });",
  solve: {'solution.cjs': "function withTax(cart) {\n  return cart.map(item => ({ ...item, price: Math.round(item.price * 110) / 100 }));\n}\n\nmodule.exports = { withTax };\n"}},
 
-{id: 'door-5', door: 5, kind: 'check', title: 'Stage 5 door test',
+{id: 'door-5', door: 5, kind: 'check', title: 'Part 5 door test',
  ask: 'solution.cjs has three bugs. average(list) should give back the average and 0 for an empty list. topScorer(players) should give back the name with the highest score without changing the list. inRange(n) should say whether n is from 1 to 10, both included. Find and fix all three.',
  files: {'solution.cjs': "function average(list) {\n  let sum = 0;\n  for (let i = 0; i <= list.length; i++) sum += list[i];\n  return sum / list.length;\n}\n\nfunction topScorer(players) {\n  players.sort((a, b) => b.score - a.score);\n  return players[0].name;\n}\n\nfunction inRange(n) {\n  return n > 1 && n < 10;\n}\n\nmodule.exports = { average, topScorer, inRange };\n"},
  test: "const s = load('solution.cjs');\ncheck('average', () => { assert.strictEqual(s.average([2, 4, 6]), 4); assert.strictEqual(s.average([]), 0); });\ncheck('topScorer leaves the list alone', () => { const p = [{ name: 'A', score: 1 }, { name: 'B', score: 9 }]; assert.strictEqual(s.topScorer(p), 'B'); assert.strictEqual(p[0].name, 'A'); });\ncheck('inRange includes 1 and 10', () => { assert.ok(s.inRange(1) && s.inRange(10) && s.inRange(5)); assert.ok(!s.inRange(0) && !s.inRange(11)); });",
@@ -251,7 +251,7 @@ window.OPEBank = [
  ask: 'A small online shop can keep the cart in the browser, or on the server. Pick one for a shop with no accounts, say why, and say plainly what you give up.',
  model: 'The browser. With no accounts there is nobody to save a server cart for, it costs nothing, and it works offline and fast. What I give up: the cart does not follow them from phone to laptop, it is lost if they clear their browser, and prices in it can be stale, so the server must check every price again at checkout and never trust the browser total.'},
 
-{id: 'door-6', door: 6, kind: 'explain', title: 'Stage 6 door test',
+{id: 'door-6', door: 6, kind: 'explain', title: 'Part 6 door test',
  ask: 'Design an appointment reminder app before any code. Give: the data (every kind of record and its fields), the functions (name, what goes in, what comes out), the files (each with one job), the order things happen in, and one choice you made between two ways with what you gave up.',
  model: 'A good answer names Client, Appointment and Reminder with their fields and a status list; functions such as book, cancel, dueReminders(now) and send(reminder); files split into data, scheduling, sending and the screen, with only the screen touching the page; the flow from booking to the reminder being sent and marked; and one honest trade off, such as checking every minute instead of scheduling exact timers, giving up a minute of precision for something that survives a restart.'},
 
@@ -282,7 +282,7 @@ window.OPEBank = [
  ask: 'Explain the project you are building with OPE, as if to a new engineer on their first day: every main part and its job, what happens from the moment a person does the main thing until they see the result, where the data lives, and the one part you would rewrite first and why. Send it from that project, so your AI coder checks it against the real code.',
  model: 'A good answer names the real folders and files, follows one real request through them in order, says where data is stored and who can read it, and picks a weak part with a reason the code actually supports.'},
 
-{id: 'door-7', door: 7, kind: 'explain', title: 'Stage 7 door test',
+{id: 'door-7', door: 7, kind: 'explain', title: 'Part 7 door test',
  ask: 'pr.diff is a change an AI wants to merge. Review it like a senior engineer: every problem you find (security, correctness, speed, design), how serious each one is, and your decision, merge or reject, with what must change first.',
  files: {'pr.diff': "+ // add search to the shop\n+ app.get('/search', async (req, res) => {\n+   const q = req.query.q;\n+   const rows = await db.query(\"SELECT * FROM products WHERE name LIKE '%\" + q + \"%'\");\n+   const out = [];\n+   for (const r of rows) {\n+     for (const r2 of rows) {\n+       if (r.id === r2.id && !out.includes(r)) out.push(r);\n+     }\n+   }\n+   res.send('<h1>Results for ' + q + '</h1>' + out.map(r => '<p>' + r.name + ' $' + r.cost + '</p>').join(''));\n+ });\n"},
  model: 'Reject. Serious: the search text is glued into SQL (injection, anyone can read or delete the database) and into the HTML (cross site scripting). It selects every column, including anything private, with no limit. The double loop plus includes is slow for no reason and does nothing a plain list would not. It shows r.cost, which is probably the shop\'s cost, not the price. Needs: a parameter for the query, escaped output, chosen columns, a limit, and the loop removed.'}

@@ -278,3 +278,9 @@ html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .card2 .bad{margin:12px 0 0;color:#ff8a80}
 .lrn .weak{margin:0 0 6px;color:var(--sub);font-size:12px}
 .card2 .small .path{color:var(--ink);font-weight:400;word-break:break-all}
+/* the twelve milestones of the part you are in */
+.miles{list-style:none;margin:-4px 0 18px;padding:0;display:flex;gap:4px;flex-wrap:wrap}
+.miles li{width:22px;height:6px;border-radius:3px;background:var(--edge-dim)}
+.miles li.done{background:var(--green)}
+.miles li.skip{background:#E5A94B}
+.miles li.now{background:#F08A3C}

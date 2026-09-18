@@ -121,16 +121,16 @@ test, for the skill you are on. OPE cuts a piece out, you write it back, and it
 counts when the test passes. Explaining a piece works the same way: your answer
 goes into a file and your AI coder grades it on its next run.
 
-- **Eight stages, one fixed skill list**: Computer, Reader, Tweaker, Writer,
-  Builder, Debugger, Designer, Elite, five skills each. The list is fixed; the
+- **Eight parts, 96 milestones**: Computer, Reader, Tweaker, Writer,
+  Builder, Debugger, Designer, Elite, twelve milestones each. The list is fixed; the
   practice comes from your own code.
 - **Nothing too hard reaches you.** The AI says how hard a piece is, OPE's own
   rules check it, and the harder of the two is used.
-- **A practice bank** of 48 tasks, each with its own test, for the days your
+- **A practice bank** of 104 tasks, each with its own test, for the days your
   project has nothing at your skill. Practice work goes in an **OPE Course**
   folder on your Desktop, with its own git history, and never touches your
   projects.
-- **No jumping.** Every stage opens with a door test: pass it and the whole stage
+- **No jumping.** Every part opens with a door test: pass it and the whole part
   counts.
 - **From Stage 4 up your AI coder is switched off** and you write the code.
   Nothing can stop you pasting from a chatbot in the browser, so that part is on

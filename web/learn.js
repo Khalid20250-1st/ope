@@ -125,14 +125,14 @@
     }
     var c = current(), st = c ? stageOf(c.stage) : null, off = st && !st.ai, w = weak();
     var ids = SKILLS.map(function(s){
-      return 'Stage ' + s.n + ' ' + s.name + ': ' + s.skills.map(function(k){ return k.id; }).join(', ');
+      return 'Part ' + s.n + ' ' + s.name + ': ' + s.skills.map(function(k){ return k.id; }).join(', ');
     }).join('\n');
     return [
       '# Learning while building (OPE)',
       '',
       'Mode: Learning',
-      c ? 'Where they are: Stage ' + c.stage + ' ' + c.stageName + ', skill `' + c.id + '` (' + c.name + ').' : 'They have passed every stage.',
-      'AI coder: ' + (off ? '**off**. Stage 4 and above.' : 'on'),
+      c ? 'Where they are: Part ' + c.stage + ' ' + c.stageName + ', milestone `' + c.id + '` (' + c.name + ').' : 'They have passed every part.',
+      'AI coder: ' + (off ? '**off**. Part 4 and above.' : 'on'),
       w.length ? 'Weak spots to bring back: ' + w.map(function(k){ return '`' + k + '`'; }).join(', ') + '.' : '',
       '',
       'The person is learning to code on this project. Read this before any work, every time.',
@@ -159,11 +159,11 @@
       '## 2. Grade their answers',
       'When a file in `ope-learn/answers/`' + (L.course ? ', or in `' + L.course + '/answers/`,' : '') + ' says `Verdict: waiting`, read the question, the code and their answer. Change that line to `Verdict: pass` or `Verdict: fail`, and add a `## Why` section in plain words: what they got right, what they missed. Pass means they understood it, not that the wording is perfect. For `elite-system`, check what they say against the real code.',
       '',
-      '## 3. Stage 4 and above: you are off',
-      off ? '**This applies now.** Do not write, change or fix code in this project for them. Explain, point at the line, ask a question that leads them there, but they type the code. If they ask you to write it, say they are at Stage ' + c.stage + ' and the code is theirs to write. You may still write tests and tags, and plant a bug when a Debugger task asks you to.'
-          : 'Not yet. From Stage 4 up you stop writing code for them; this file will say so.',
+      '## 3. Part 4 and above: you are off',
+      off ? '**This applies now.** Do not write, change or fix code in this project for them. Explain, point at the line, ask a question that leads them there, but they type the code. If they ask you to write it, say they are at Part ' + c.stage + ' and the code is theirs to write. You may still write tests and tags, and plant a bug when a Debugger task asks you to.'
+          : 'Not yet. From Part 4 up you stop writing code for them; this file will say so.',
       '',
-      '## Skill ids',
+      '## Milestone ids',
       '',
       ids,
       ''
@@ -171,7 +171,7 @@
   }
 
   /* the AI coder only reads LEARN.md because AGENTS.md tells it to */
-  var HOOK = '\n\n## Learning while building (OPE)\n\nIf `ope-learn/LEARN.md` exists and says `Mode: Learning`, read it before any work and follow it. It says where the person is, what to tag, what to grade and, from Stage 4, that you stop writing code for them.\n';
+  var HOOK = '\n\n## Learning while building (OPE)\n\nIf `ope-learn/LEARN.md` exists and says `Mode: Learning`, read it before any work and follow it. It says where the person is, what to tag, what to grade and, from Part 4, that you stop writing code for them.\n';
   function hookAgents(){
     return readText('AGENTS.md').then(function(have){
       if(have != null && have.indexOf('ope-learn/LEARN.md') >= 0) return;
@@ -389,17 +389,21 @@
     if(!c){ box.innerHTML = head + '<p class="under">Every stage is passed. You can review and reject an AI\'s code and say why.</p></div>'; wire(); return; }
     var st = stageOf(c.stage), inStage = st.skills.filter(function(k){ return m.passed[k.id]; }).length;
     var html = head+
-      '<div class="where2"><b>Stage ' + st.n + ' ' + esc(st.name) + '</b><span>You can ' + esc(st.can) + ' once this stage is passed.</span></div>'+
+      '<div class="where2"><b>Part ' + st.n + ' ' + esc(st.name) + '</b><span>You can ' + esc(st.can) + ' once this part is passed.</span></div>'+
       '<ol class="ladder">' + SKILLS.map(function(s){
         var done = s.skills.every(function(k){ return m.passed[k.id]; });
-        return '<li class="' + (done ? 'done' : s.n === st.n ? 'now' : '') + '" title="Stage ' + s.n + ' ' + esc(s.name) + '"><i>' + s.n + '</i><span>' + esc(s.name) + '</span></li>';
+        return '<li class="' + (done ? 'done' : s.n === st.n ? 'now' : '') + '" title="Part ' + s.n + ' ' + esc(s.name) + '"><i>' + s.n + '</i><span>' + esc(s.name) + '</span></li>';
       }).join('') + '</ol>'+
-      '<p class="skill">Skill ' + (inStage + 1) + ' of ' + st.skills.length + ': <b>' + esc(c.name) + '</b>' + (st.ai ? '' : ' <em class="off">AI coder off</em>') + '</p>';
+      '<p class="skill">Milestone ' + (inStage + 1) + ' of ' + st.skills.length + ': <b>' + esc(c.name) + '</b>' + (st.ai ? '' : ' <em class="off">AI coder off</em>') + '</p>'+
+      '<ol class="miles" aria-label="The milestones of this part">' + st.skills.map(function(k){
+        var cls = m.passed[k.id] === 'skipped' ? 'skip' : m.passed[k.id] ? 'done' : k.id === c.id ? 'now' : '';
+        return '<li class="' + cls + '" title="' + esc(k.name) + '"></li>';
+      }).join('') + '</ol>';
     var door = doorFor(st.n), noneYet = inStage === 0 && !m.doors[st.n];
     var w = m.work;
     if(!w && noneYet && door){
-      html += '<div class="card2"><p class="k">THE DOOR TEST</p><p>Already know Stage ' + st.n + '? Pass this one test and the whole stage counts. Fail it and you go through the stage one skill at a time, which is fine.</p>'+
-        '<div class="acts3"><button class="btn go" type="button" id="lDoor">Take the door test</button><button class="btn" type="button" id="lNoDoor">Start at skill 1</button></div></div>';
+      html += '<div class="card2"><p class="k">THE DOOR TEST</p><p>Already know Part ' + st.n + '? Pass this one test and all ' + st.skills.length + ' milestones count. Fail it and you go through them one at a time, which is fine.</p>'+
+        '<div class="acts3"><button class="btn go" type="button" id="lDoor">Take the door test</button><button class="btn" type="button" id="lNoDoor">Start at milestone 1</button></div></div>';
     } else if(w){
       html += '<div class="card2" id="lWork"><p class="k">Loading your piece...</p></div>';
     } else {
