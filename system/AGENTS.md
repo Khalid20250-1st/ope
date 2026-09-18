@@ -114,11 +114,17 @@ at the end: each save is a step the person can look at while the work is running
 
 If `ope-learn/LEARN.md` exists and says `Mode: Learning`, read it before any work
 and follow it. The person has switched OPE to learning in this project. In short:
-you still build the full, working code, then tag one to three small pieces of it
-in `ope-learn/tags.json`, each with a test, for the skill they are on; you grade
-their answers in `ope-learn/answers/`; and from Stage 4 up you stop writing code
-for them. The file says exactly where they are. If it says `Mode: Building`, or
-there is no file, ignore `ope-learn` and work normally.
+you still build the full, working code, then leave **one or two** small pieces of
+it for them, tagged in `ope-learn/tags.json` with a stand-in that keeps the app
+running and a test that fails until their code is in. Tell them plainly which
+file and lines are theirs, and ask: "Do you want step by step help, or do you
+want to try it yourself?" Then **build nothing more in this project** while
+LEARN.md lists a piece under "Waiting on the person": only explain, guide and
+check, until their test passes in OPE or they press "Just do it for me". Never
+leave them payments, passwords, security or anything that deletes data. You
+grade their answers in `ope-learn/answers/`, and from Stage 4 up you stop
+writing code for them. If it says `Mode: Building`, or there is no file, ignore
+`ope-learn` and work normally.
 
 ## The system folder: open only when needed
 

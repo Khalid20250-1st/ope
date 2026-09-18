@@ -116,10 +116,15 @@ on in the Learn view (the cap on the left).
 
 Your AI coder still writes the full, working code. OPE writes
 `ope-learn/LEARN.md` into the project, and `AGENTS.md` tells the AI to read it,
-so from then on it tags one to three small pieces of what it writes, each with a
-test, for the skill you are on. OPE cuts a piece out, you write it back, and it
-counts when the test passes. Explaining a piece works the same way: your answer
-goes into a file and your AI coder grades it on its next run.
+so from then on it leaves **your part**: one or two small pieces of each build,
+at your level, each with a test. It tells you which file and lines are yours and
+asks whether you want step by step help. A stand-in keeps the app running while
+the piece is yours, and **the AI builds nothing more on the project until your
+test passes**. OPE cuts the piece out, you write it back, and it counts when the
+test passes. Payments, passwords, security and deleting data are never left to
+you, and saying "urgent" lets one build go ahead without a piece. Explaining a
+piece works the same way: your answer goes into a file and your AI coder grades
+it on its next run.
 
 - **Eight parts, 96 milestones**: Computer, Reader, Tweaker, Writer,
   Builder, Debugger, Designer, Elite, twelve milestones each. The list is fixed; the

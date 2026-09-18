@@ -124,7 +124,14 @@ When the whole list of **a** is done:
 
 OPE has a setting for each project: **Building** or **Learning while building**.
 If `ope-learn/LEARN.md` exists and says `Mode: Learning`, read it before any work
-and follow it: build the full, working code as normal, then tag one to three small
-pieces of it in `ope-learn/tags.json`, each with a test, for the skill I am on;
-grade my answers in `ope-learn/answers/`; and from Stage 4 up, stop writing code
-for me. If it says `Mode: Building`, or there is no file, ignore it.
+and follow it: build the full, working code as normal, then leave **one or two**
+small pieces of it for me, tagged in `ope-learn/tags.json` with a stand-in that
+keeps the app running and a test that fails until my code is in. Tell me plainly
+which file and lines are mine, and ask me: "Do you want step by step help, or do
+you want to try it yourself?" Then **build nothing more in my project** until my
+piece passes its test in OPE or I press "Just do it for me"; until then you only
+explain, guide and check. Never leave me payments, passwords, security or anything
+that deletes data. Grade my answers in `ope-learn/answers/`, and from Stage 4 up,
+stop writing code for me. If I say "urgent" or "no learning this time", do that
+one build without leaving me a piece. If the file says `Mode: Building`, or there
+is no file, ignore it.

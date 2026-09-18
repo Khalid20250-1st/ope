@@ -4,6 +4,30 @@ The method writes a project here the moment it is named, before any code, so
 OPE shows it straight away. `Planning` while it is talked through, `Building`
 while it is worked on, `Done` when it is finished.
 
+## 6.2 Your part
+Building
+In Learning mode the AI coder leaves one or two small pieces of each build for
+the person, at their level, with a stand-in so the app still runs and a test
+that fails until the real code is in. It says plainly which file and lines are
+theirs, asks whether they want step by step help, and then builds nothing more
+in the project until their piece passes its test and OPE marks it verified, or
+they press "Just do it for me". Payments, passwords, security and deleting data
+are never left to them. "Urgent" or "no learning this time" lets one build go
+ahead without a piece.
+
+1 none
+1a LEARN.md tells the AI coder to leave one or two pieces with a stand-in and a failing test, never anything dangerous.
+2 none
+2a LEARN.md gives the exact words to tell the person which lines are theirs, and to offer step by step help.
+3 none
+3a LEARN.md lists the pieces OPE is waiting on, and tells the AI coder to build nothing more until the list is empty.
+4 none
+4a OPE puts the stand-in in the hole, marks a piece passed or skipped in tags.json, and refreshes the waiting list.
+5 none
+5a AGENTS.md, the prompt and the README say the same.
+6 Try it on a real project in Learning mode.
+6a Test it start to finish on a demo project. (Done 18 Sep: stand-in runs, test fails on it, pass and skip both clear the waiting list.)
+
 ## 6.1 Learn while building
 Done
 A setting with two modes, Building and Learning while building. Learning teaches you to code on your own project, from barely touching a laptop to elite: a fixed skill list in eight stages, pieces of your own code cut out for you with a test, a practice bank when your project has nothing at your level, no jumping but a test at each stage door, the AI coder switched off from Stage 4 up, and a "just do it for me" button that records the skip.

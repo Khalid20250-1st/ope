@@ -119,14 +119,19 @@
   /* ------------------------------------------------------------ LEARN.md */
   /* What the AI coder reads. It is rewritten whenever the mode or your place
      changes, so the AI always knows where you are and what it may do. */
-  function learnMd(){
+  function learnMd(wait){
     if(mode() !== 'learn'){
       return '# Learning while building (OPE)\n\nMode: Building\n\nThe person is not learning in this project right now. Ignore ope-learn and build as normal.\n';
     }
+    wait = wait || [];
     var c = current(), st = c ? stageOf(c.stage) : null, off = st && !st.ai, w = weak();
     var ids = SKILLS.map(function(s){
       return 'Part ' + s.n + ' ' + s.name + ': ' + s.skills.map(function(k){ return k.id; }).join(', ');
     }).join('\n');
+    var waitList = wait.map(function(t){
+      return '- `' + t.id + '`: `' + t.file + '` lines ' + t.start + ' to ' + t.end + ', ' + (skillOf(t.skill) ? skillOf(t.skill).name : t.skill) +
+        '. ' + (t.ask || '') + ' Test: `' + t.test + '`';
+    });
     return [
       '# Learning while building (OPE)',
       '',
@@ -137,9 +142,15 @@
       '',
       'The person is learning to code on this project. Read this before any work, every time.',
       '',
-      '## 1. Build normally, then tag',
-      off ? 'You are switched off for writing code (see 3). You still tag, grade and explain.'
-          : 'Write the full, working code as you always would. Then, in the same run, tag one to three pieces of what you just wrote that suit the skill they are on, and their weak spots.',
+      '## Waiting on the person',
+      wait.length
+        ? '**Build nothing more in this project until this list is empty.** No new feature, no next task, no next version, not even "while you do that". You may only explain, guide, answer questions and check their work.\n\n' + waitList.join('\n') +
+          '\n\nA piece leaves this list when its test passes and they press Check my work in OPE, or when they press Just do it for me. OPE rewrites this file then. You can run the test yourself when they ask you to check it, but only OPE marks it done.'
+        : 'Nothing. You may build.',
+      '',
+      '## 1. Build, and leave their part',
+      off ? 'You are switched off for writing code (see 5). You still tag, grade, explain and guide.'
+          : 'Write the full, working code as you always would. Then, in the same run, pick **one or two** small pieces of what you just wrote that suit the milestone they are on (or a weak spot) and leave them for the person. Never more than two in one build.',
       '',
       'Tags go in `ope-learn/tags.json`, a list. Add to it, never remove what is there:',
       '',
@@ -147,19 +158,35 @@
       '[{"id": "t12", "file": "src/cart.js", "start": 14, "end": 19, "first": "function total(items) {",',
       '  "skill": "write-loop", "stage": 3, "kind": "write",',
       '  "ask": "Write the loop that adds up every price in items.",',
+      '  "standin": "return 0",',
       '  "test": "node ope-learn/tests/t12.test.cjs"}]',
       '```',
       '',
-      '- `id` new every time. `start` and `end` are line numbers, both included. `first` is the exact first line, so OPE can find it if lines move.',
+      '- `id` new every time. `start` and `end` are line numbers of YOUR finished code, both included. `first` is the exact first line, so OPE can find it if lines move.',
       '- `skill` is one of the ids below. `stage` is how hard YOU think it is, 0 to 7. OPE checks it and keeps the harder of the two.',
-      '- `kind` is `read` (they explain what it does, no test), `tweak` (they change it until the test passes) or `write` (OPE cuts those lines out and they write them back).',
-      '- `test` is required for tweak and write: one command that exits 0 only when the piece is right. Write the test file too, and make sure it passes on your code before you tag.',
-      '- Pieces must be small, safe and have a test. Never tag login, payments, passwords or anything that could lose data.',
+      '- `kind` is `read` (they explain what it does, no test), `tweak` (they change it until the test passes) or `write` (OPE takes those lines out and they write them back).',
+      '- `standin` (for `write`): one or a few lines OPE puts in the gap so the app still runs while the piece is theirs, like `return 0` or `return []`. The app must not crash with it in place.',
+      '- `test` is required for tweak and write: one command that exits 0 only when the piece is right. Write the test file too. It must **pass on your real code and fail on the stand-in**; run it both ways before you tag.',
+      '- OPE adds `done` (`passed` or `skipped`) to a tag when it is finished. Never remove it, never set it yourself.',
+      '- **Never leave them** login, payments, passwords, tokens, security checks, or anything that deletes or could lose data. Those you always write yourself.',
       '',
-      '## 2. Grade their answers',
+      '## 2. Tell them which part is theirs',
+      'At the end of the run, in plain words, tell them what OPE left for them. Name the file, the lines and what the piece does, one line each. For example:',
+      '',
+      '> OPE left one piece of this for you: in `src/cart.js`, lines 14 to 19, the loop that adds up the prices. It is your turn. Open Learn in OPE to see it and its test.',
+      '',
+      'Then ask exactly one question: **"Do you want step by step help, or do you want to try it yourself?"**',
+      '',
+      '## 3. Step by step, only if they ask',
+      'Guide one small move at a time: what to look at, what the next line needs to do, a question that leads them there. Wait for them after each step. Never type their piece for them, not even "just this once". If they say they will try it themselves, step back and wait until they ask.',
+      '',
+      '## 4. When they are in a hurry',
+      'If they say **urgent** or **no learning this time**, do that one build without leaving a new piece. Pieces already waiting stay waiting, and "Just do it for me" in OPE is how they hand one back.',
+      '',
+      '## 5. Grade their answers',
       'When a file in `ope-learn/answers/`' + (L.course ? ', or in `' + L.course + '/answers/`,' : '') + ' says `Verdict: waiting`, read the question, the code and their answer. Change that line to `Verdict: pass` or `Verdict: fail`, and add a `## Why` section in plain words: what they got right, what they missed. Pass means they understood it, not that the wording is perfect. For `elite-system`, check what they say against the real code.',
       '',
-      '## 3. Part 4 and above: you are off',
+      '## 6. Part 4 and above: you are off',
       off ? '**This applies now.** Do not write, change or fix code in this project for them. Explain, point at the line, ask a question that leads them there, but they type the code. If they ask you to write it, say they are at Part ' + c.stage + ' and the code is theirs to write. You may still write tests and tags, and plant a bug when a Debugger task asks you to.'
           : 'Not yet. From Part 4 up you stop writing code for them; this file will say so.',
       '',
@@ -171,7 +198,7 @@
   }
 
   /* the AI coder only reads LEARN.md because AGENTS.md tells it to */
-  var HOOK = '\n\n## Learning while building (OPE)\n\nIf `ope-learn/LEARN.md` exists and says `Mode: Learning`, read it before any work and follow it. It says where the person is, what to tag, what to grade and, from Part 4, that you stop writing code for them.\n';
+  var HOOK = '\n\n## Learning while building (OPE)\n\nIf `ope-learn/LEARN.md` exists and says `Mode: Learning`, read it before any work and follow it. It says where the person is, which pieces to leave for them, what to grade and, from Part 4, that you stop writing code for them. While it lists a piece under Waiting on the person, build nothing more in this project.\n';
   function hookAgents(){
     return readText('AGENTS.md').then(function(have){
       if(have != null && have.indexOf('ope-learn/LEARN.md') >= 0) return;
@@ -181,7 +208,44 @@
       return write('AGENTS.md', have + HOOK);
     });
   }
-  function syncMd(){ return root() ? write(DIR + '/LEARN.md', learnMd()) : Promise.resolve(); }
+  /* YOUR PART. The pieces the AI coder left for the person that OPE is still
+     waiting on: tagged for the milestone they are on, easy enough for them, a
+     piece they change or write, and not yet passed or skipped. While this list has
+     anything in it, LEARN.md tells the AI coder to build nothing more. */
+  function waiting(){
+    if(mode() !== 'learn') return Promise.resolve([]);
+    /* exactly the pieces OPE would hand out (see pick), so a piece too hard
+       for them, or for another milestone, never blocks the AI coder */
+    var m = me(), c = current();
+    if(!c) return Promise.resolve([]);
+    /* the piece in their hands right now is waiting even though its lines are
+       out of the file, where the tag can no longer find them */
+    var out = (m.work && m.work.source === 'project' && m.work.tag && (m.work.tag.kind || 'write') !== 'read') ? [m.work.tag] : [];
+    return tags().then(function(list){
+      return out.concat(list.filter(function(t){
+        var kind = t.kind || (c.stage <= 1 ? 'read' : c.stage === 2 ? 'tweak' : 'write');
+        return kind !== 'read' && t.test && !t.done && !m.done[t.id] && t.skill === c.id && t.stage <= c.stage &&
+          !out.some(function(o){ return o.id === t.id; });
+      }));
+    }).catch(function(){ return out; });
+  }
+  function syncMd(){
+    if(!root()) return Promise.resolve();
+    /* written only when it changed, so opening Learn does not touch the project */
+    return Promise.all([waiting(), readText(DIR + '/LEARN.md')]).then(function(r){
+      var md = learnMd(r[0]);
+      if(r[1] !== md) return write(DIR + '/LEARN.md', md);
+    });
+  }
+  /* OPE writes the outcome onto the tag, so the AI coder can see it too */
+  function markTag(id, how){
+    return readJSON(DIR + '/tags.json').then(function(list){
+      if(!Array.isArray(list)) return;
+      var hit = false;
+      list.forEach(function(t){ if(t && t.id === id){ t.done = how; t.doneAt = now(); hit = true; } });
+      if(hit) return write(DIR + '/tags.json', JSON.stringify(list, null, 2) + '\n');
+    });
+  }
 
   /* ------------------------------------------------------------ choosing the next piece */
   function bankFor(skill){ return BANK.filter(function(t){ return t.skill === skill; })[0]; }
@@ -200,7 +264,7 @@
       var st = c.stage;
       var mine = list.filter(function(t){
         var kind = t.kind || (st <= 1 ? 'read' : st === 2 ? 'tweak' : 'write');
-        return t.skill === c.id && !m.done[t.id] && t.stage <= st && (kind === 'read' || t.test);
+        return t.skill === c.id && !m.done[t.id] && !t.done && t.stage <= st && (kind === 'read' || t.test);
       })[0];
       if(mine) return {source: 'project', id: mine.id, skill: mine.skill, tag: mine};
       var b = bankFor(c.id);
@@ -252,7 +316,10 @@
       if(text.indexOf(mk.start) >= 0) return;
       var original = lines.slice(tag.start - 1, tag.end).join('\n');
       var pad = (lines[tag.start - 1].match(/^\s*/) || [''])[0];
-      var hole = [pad + mk.start, pad + comment(tag.file, 'Your turn: ' + (tag.ask || 'write this part')), pad + mk.end];
+      /* the stand-in the AI coder wrote keeps the app running while the piece
+         is theirs; the test fails on it until the real code is in */
+      var stand = tag.standin ? String(tag.standin).split('\n').map(function(l){ return pad + l; }) : [];
+      var hole = [pad + mk.start, pad + comment(tag.file, 'Your turn: ' + (tag.ask || 'write this part'))].concat(stand, [pad + mk.end]);
       return write(DIR + '/held/' + tag.id + '.json', JSON.stringify({file: tag.file, original: original}, null, 2)).then(function(){
         return write(tag.file, lines.slice(0, tag.start - 1).concat(hole, lines.slice(tag.end)).join('\n'));
       });
@@ -316,6 +383,7 @@
         return write(p.tag.file, text.split('\n').filter(function(l){ return l.trim() !== mk.start && l.trim() !== mk.end; }).join('\n'));
       });
     }
+    if(p.source === 'project') tidy = tidy.then(function(){ return markTag(p.id, 'passed'); });
     return tidy.then(keep).then(syncMd);
   }
   function mistake(p){
@@ -353,6 +421,7 @@
         });
       }
     }
+    if(p.source === 'project') go = go.then(function(){ return markTag(p.id, 'skipped'); });
     return go.then(keep).then(syncMd);
   }
 
@@ -385,6 +454,7 @@
       box.innerHTML = head + '<p class="under">Building: OPE works as it always has. Switch to Learning while building and your AI coder starts leaving small pieces of this project for you, each with a test.</p></div>';
       wire(); return;
     }
+    syncMd().catch(function(){});
     var m = me(), c = current();
     if(!c){ box.innerHTML = head + '<p class="under">Every stage is passed. You can review and reject an AI\'s code and say why.</p></div>'; wire(); return; }
     var st = stageOf(c.stage), inStage = st.skills.filter(function(k){ return m.passed[k.id]; }).length;
@@ -509,7 +579,9 @@
     return [
       'Press Open ' + tag.file.split('/').pop() + '. OPE shows your code and puts the cursor on line ' + tag.start + '.',
       'Find the two lines that say ' + mk.start.trim() + ' and ' + mk.end.trim() + '. Your code goes between them.',
-      'Replace the line that says Your turn with your code. Leave the two OPE lines where they are.',
+      tag.standin
+        ? 'Replace the line that says Your turn, and the stand-in under it (' + String(tag.standin).split('\n')[0].trim() + '), with your code. The stand-in only keeps the app running until yours is in. Leave the two OPE lines where they are.'
+        : 'Replace the line that says Your turn with your code. Leave the two OPE lines where they are.',
       'Press Save at the top right, or Command S (Control S on Windows).',
       'Come back here with the cap button on the left and press Check my work.',
       'If it says FAIL, read the line after FAIL: it says what is still wrong. Fix that and check again.'];
