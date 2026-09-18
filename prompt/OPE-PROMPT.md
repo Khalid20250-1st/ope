@@ -119,3 +119,12 @@ When the whole list of **a** is done:
 2. Then give me my **b** list, in order.
 3. Refine anything that is worth refining, then say "done, it is ready to deploy".
 4. **Deploy or publish only when I say "deploy".**
+
+## 7. Learning while building
+
+OPE has a setting for each project: **Building** or **Learning while building**.
+If `ope-learn/LEARN.md` exists and says `Mode: Learning`, read it before any work
+and follow it: build the full, working code as normal, then tag one to three small
+pieces of it in `ope-learn/tags.json`, each with a test, for the skill I am on;
+grade my answers in `ope-learn/answers/`; and from Stage 4 up, stop writing code
+for me. If it says `Mode: Building`, or there is no file, ignore it.

@@ -69,6 +69,8 @@
   /* ------------------------------------------------------------ the views */
   function show(which){
     $('welcome').classList.toggle('hidden', which !== 'welcome');
+    $('learn').classList.toggle('hidden', which !== 'learn');
+    if(which !== 'learn' && window.OPELearn) OPELearn.hide();
     $('code').classList.toggle('hidden', which !== 'code');
     $('blank').classList.toggle('hidden', which !== 'blank');
     var code = which === 'code';
@@ -959,6 +961,7 @@
       if(v === 'open') return pickProject();
       document.querySelectorAll('.rail .ico').forEach(function(x){ x.classList.toggle('on', x === b); });
       if(v === 'prompt') welcome();
+      if(v === 'learn'){ S.path = ''; setDirty(false); $('tabName').textContent = 'Learn'; show('learn'); OPELearn.show(); }
       if(v === 'projects'){ if(S.path) show('code'); else if(S.root) blank('Pick a project on the left, then a version.<br>Folders it touched get a green box.'); else welcome(); }
     };
   });
@@ -978,5 +981,13 @@
     if(res[0].root) openRoot(res[0].root, true);
     else welcome();
   });
-  window.OPE = {state: S, openRoot: openRoot};
+  /* Learn opens a file at the line its piece starts on, and goes back to the code view */
+  function openAt(path, line){
+    document.querySelectorAll('.rail .ico').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-view') === 'projects'); });
+    S.follow = false;
+    return Promise.resolve(openFile(path)).then(function(){
+      if(line && S.editor){ S.editor.revealLineInCenter(line); S.editor.setPosition({lineNumber: line, column: 1}); S.editor.focus(); }
+    });
+  }
+  window.OPE = {state: S, openRoot: openRoot, openFile: openAt};
 })();

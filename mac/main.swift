@@ -138,6 +138,7 @@ final class Project {
 
   func write(_ rel: String, _ text: String) throws {
     let url = try inside(rel)
+    try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     do { try text.write(to: url, atomically: true, encoding: .utf8) }
     catch { throw OPEError("That file could not be saved: \(error.localizedDescription)") }
   }
@@ -170,6 +171,70 @@ final class Project {
       FSEventStreamSetDispatchQueue(s, DispatchQueue.main)
       FSEventStreamStart(s)
     }
+  }
+}
+
+// ---------------------------------------------------------------- learning
+
+/* Where you are, what you passed, skipped and keep getting wrong. One file on
+   this Mac, the same for every project, and the same file the Node twin uses. */
+enum Learn {
+  static let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/ope/learn.json")
+  static let runOK: Set<String> = ["node", "npm", "npx", "python3", "python", "pytest", "go", "cargo", "swift", "deno", "bun"]
+
+  static func get() -> [String: Any] {
+    guard let d = try? Data(contentsOf: file), let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return ["data": [String: Any]()] }
+    return ["data": j]
+  }
+  static func save(_ data: Any) throws {
+    try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let d = try JSONSerialization.data(withJSONObject: data, options: [.prettyPrinted])
+    try d.write(to: file, options: .atomic)
+  }
+
+  /* an app opened from the Dock has almost no PATH, so the places Node and
+     friends are usually installed are added, the newest nvm one included */
+  static func path() -> String {
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    var dirs = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", home + "/.volta/bin", home + "/.bun/bin",
+                home + "/.deno/bin", home + "/.cargo/bin", home + "/go/bin"]
+    let nvm = home + "/.nvm/versions/node"
+    if let v = try? FileManager.default.contentsOfDirectory(atPath: nvm).sorted(by: { $0.compare($1, options: .numeric) == .orderedDescending }).first {
+      dirs.insert(nvm + "/" + v + "/bin", at: 0)
+    }
+    return (dirs + [ProcessInfo.processInfo.environment["PATH"] ?? ""]).joined(separator: ":")
+  }
+
+  /* a test, in the project folder: never a shell, never longer than a minute */
+  static func run(_ args: [String], in root: URL) throws -> [String: Any] {
+    guard let first = args.first, runOK.contains(first) else {
+      throw OPEError("OPE only runs tests with " + runOK.sorted().joined(separator: ", ") + ".")
+    }
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    p.arguments = args
+    p.currentDirectoryURL = root
+    var env = ProcessInfo.processInfo.environment
+    env["PATH"] = path()
+    p.environment = env
+    let out = Pipe(), err = Pipe()
+    p.standardOutput = out
+    p.standardError = err
+    var outData = Data(), errData = Data()
+    let group = DispatchGroup()
+    group.enter(); DispatchQueue.global().async { outData = out.fileHandleForReading.readDataToEndOfFile(); group.leave() }
+    group.enter(); DispatchQueue.global().async { errData = err.fileHandleForReading.readDataToEndOfFile(); group.leave() }
+    do { try p.run() } catch { throw OPEError("\(first) could not be started.") }
+    var killed = false
+    let timer = DispatchWorkItem { if p.isRunning { killed = true; p.terminate() } }
+    DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timer)
+    p.waitUntilExit()
+    timer.cancel()
+    group.wait()
+    var e = String(decoding: errData, as: UTF8.self)
+    if killed { e += "\nStopped after a minute." }
+    if p.terminationStatus == 127 { e += "\n\(first) is not installed on this Mac." }
+    return ["code": Int(p.terminationStatus), "out": String(decoding: outData, as: UTF8.self), "err": e]
   }
 }
 
@@ -478,6 +543,21 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
     case "write":
       do { try project.write(body["path"] as? String ?? "", body["text"] as? String ?? ""); reply(["ok": true]) }
       catch let e as OPEError { fail(e.message) } catch { fail("\(error)") }
+
+    case "learnGet":
+      reply(Learn.get())
+
+    case "learnSave":
+      do { try Learn.save(body["data"] ?? [String: Any]()); reply(["ok": true]) } catch { fail("Your progress could not be saved.") }
+
+    case "run":
+      guard let root = project.root else { fail("Open a project first."); return }
+      let args = (body["args"] as? [Any] ?? []).map { "\($0)" }
+      DispatchQueue.global(qos: .userInitiated).async {
+        do { let r = try Learn.run(args, in: root); DispatchQueue.main.async { reply(r) } }
+        catch let e as OPEError { DispatchQueue.main.async { fail(e.message) } }
+        catch { DispatchQueue.main.async { fail("The test could not run.") } }
+      }
 
     case "log":
       FileHandle.standardError.write(("OPE: " + (body["text"] as? String ?? "") + "\n").data(using: .utf8)!)

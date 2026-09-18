@@ -42,6 +42,7 @@ Without a certificate, sign ad hoc (`codesign --sign -`); it runs only on that M
 | Window opens on an external monitor | pick the screen whose `localizedName` contains "Built-in" |
 | A code editor library loads from a CDN | copy it into the app at build time |
 | A blank window with no clue why | catch `error` and `unhandledrejection` in the page and show them |
+| An app opened from the Dock has almost no PATH, so it cannot find `node` or `npm` | run through `/usr/bin/env` with PATH set to Homebrew, `/usr/local/bin` and the newest nvm folder; in Electron, run Node with its own binary and `ELECTRON_RUN_AS_NODE=1` |
 
 ## 5. Sign and notarize
 

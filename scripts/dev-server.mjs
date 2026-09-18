@@ -27,6 +27,8 @@ const COMPUTER = platform() === 'darwin' ? 'Mac' : 'computer';
 let root = process.env.OPE_ROOT || '';
 /* the library of project folders, kept on this machine only */
 const LIB = join(HOME, '.config', 'ope', 'library.json');
+const LEARN = join(HOME, '.config', 'ope', 'learn.json');
+const RUN_OK = new Set(['node', 'npm', 'npx', 'python3', 'python', 'pytest', 'go', 'cargo', 'swift', 'deno', 'bun']);
 function library(){ try { return JSON.parse(readFileSync(LIB, 'utf8')); } catch { return []; } }
 function saveLibrary(items){ mkdirSync(dirname(LIB), { recursive: true }); writeFileSync(LIB, JSON.stringify(items, null, 2)); return items; }
 const recent = [];
@@ -180,7 +182,25 @@ async function command(b){
       if (buf.subarray(0, 8000).includes(0)) return { binary: true, size: s.size };
       return { text: buf.toString('utf8'), size: s.size };
     }
-    case 'write': { await writeFile(inside(b.path), String(b.text ?? ''), 'utf8'); return { ok: true }; }
+    case 'write': { const to = inside(b.path); mkdirSync(dirname(to), { recursive: true }); await writeFile(to, String(b.text ?? ''), 'utf8'); return { ok: true }; }
+    /* LEARNING. Where you are, what you passed, skipped and keep getting wrong,
+       kept on this machine only, the same for every project you open */
+    case 'learnGet': { try { return { data: JSON.parse(readFileSync(LEARN, 'utf8')) }; } catch { return { data: {} }; } }
+    case 'learnSave': { mkdirSync(dirname(LEARN), { recursive: true }); writeFileSync(LEARN, JSON.stringify(b.data || {}, null, 2)); return { ok: true }; }
+    /* a test, run in the project folder. Only the programs tests are run with,
+       never a shell, and never for longer than a minute */
+    case 'run': {
+      if (!root) throw new Error('Open a project first.');
+      const args = (b.args || []).map(String);
+      if (!RUN_OK.has(args[0])) throw new Error('OPE only runs tests with ' + [...RUN_OK].join(', ') + '.');
+      /* node is the one this app already carries, so a test runs even where
+         Node was never installed (the Windows app is Node inside Electron) */
+      const exe = args[0] === 'node' ? process.execPath : args[0];
+      return await new Promise(done => execFile(exe, args.slice(1), { cwd: root, timeout: 60000, maxBuffer: 8 * 1024 * 1024,
+        env: Object.assign({}, process.env, { ELECTRON_RUN_AS_NODE: '1' }), shell: platform() === 'win32' && args[0] !== 'node' },
+        (e, out, err) => done({ code: e ? (typeof e.code === 'number' ? e.code : 1) : 0, out: String(out || ''),
+          err: String(err || '') + (e && e.killed ? '\nStopped after a minute.' : '') })));
+    }
     case 'chatEngine': return chatEngine();
     case 'chat': return chatAsk(b);
     case 'chatPull': chatPull(); return { ok: true };

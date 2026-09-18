@@ -235,3 +235,45 @@ html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .tasks .task span{color:var(--ink)}
 .tasks .task.n span{color:var(--sub)}
 .ver .notasks{color:#E5A94B!important}
+
+/* LEARN. The same black terminal as the welcome. Green means passed, orange
+   means where you are now. */
+.lrn{max-width:760px}
+.lrn h1{margin:0 0 14px;font-size:30px;letter-spacing:.14em}
+.lrn .under{color:var(--sub);margin:14px 0 0;max-width:620px}
+.modes{display:inline-flex;border:1px solid var(--edge);border-radius:6px;overflow:hidden}
+.modes button{height:34px;padding:0 16px;border:0;background:#000;color:var(--sub);cursor:pointer}
+.modes button+button{border-left:1px solid var(--edge)}
+.modes button.on{color:#000;background:var(--green)}
+.modes button:not(.on):hover{color:var(--ink)}
+.modes button:focus-visible,.lrn .btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.where2{margin:26px 0 12px}
+.where2 b{display:block;font-size:16px;letter-spacing:.06em}
+.where2 span{color:var(--sub)}
+.ladder{list-style:none;margin:0 0 16px;padding:0;display:flex;gap:4px;flex-wrap:wrap}
+.ladder li{display:flex;align-items:center;gap:6px;height:26px;padding:0 9px;border:1px solid var(--edge-dim);border-radius:5px;color:var(--faint);font-size:11px}
+.ladder li i{font-style:normal}
+.ladder li.done{border-color:var(--green);color:var(--green)}
+.ladder li.now{border-color:#F08A3C;color:var(--ink)}
+.lrn .skill{margin:0 0 14px}
+.lrn .skill .off{font-style:normal;margin-left:8px;color:#F08A3C;font-size:11px;border:1px solid #F08A3C;border-radius:4px;padding:1px 6px}
+.card2{border:1px solid var(--edge);border-radius:8px;padding:16px 18px;margin:0 0 14px}
+.card2 .k{margin:0 0 8px;font-size:11px;letter-spacing:.12em;color:var(--sub)}
+.card2 h2{margin:0 0 8px;font-size:15px}
+.card2 .lask{margin:0 0 12px;white-space:pre-wrap}
+.card2 .small{margin:-4px 0 12px;color:var(--faint);font-size:11px}
+.card2 textarea{width:100%;margin:12px 0 0;border:1px solid var(--edge-dim);border-radius:6px;background:#000;color:var(--ink);
+  padding:10px;font:12px/1.5 var(--mono);resize:vertical}
+.card2 textarea:focus{outline:0;border-color:var(--edge)}
+.acts3{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.acts3:empty{display:none}
+.lrn .btn{height:32px;padding:0 14px}
+.lrn .btn.quiet{border-color:var(--edge-dim);color:var(--sub)}
+.card2 pre{margin:12px 0 0;max-height:260px;overflow:auto;border:1px solid var(--edge-dim);border-radius:6px;padding:12px;
+  white-space:pre-wrap;font:12px/1.5 var(--mono);color:var(--sub)}
+.card2 pre.ok{border-color:var(--green);color:var(--green)}
+.card2 pre.no{border-color:#5a2a26;color:#ff8a80}
+.card2 .wait{margin:12px 0 0;color:var(--sub)}
+.card2 .wait b{color:var(--ink)}
+.card2 .bad{margin:12px 0 0;color:#ff8a80}
+.lrn .weak{margin:0 0 6px;color:var(--sub);font-size:12px}

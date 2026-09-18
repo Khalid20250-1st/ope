@@ -108,6 +108,39 @@ and the AI opens one only when the work needs it, so they cost nothing until use
 
 Every map was walked for real before it was written down.
 
+## Learning while building
+
+OPE can teach you to code on your own project. Each project has two modes:
+**Building**, where OPE works as above, and **Learning while building**. Switch it
+on in the Learn view (the cap on the left).
+
+Your AI coder still writes the full, working code. OPE writes
+`ope-learn/LEARN.md` into the project, and `AGENTS.md` tells the AI to read it,
+so from then on it tags one to three small pieces of what it writes, each with a
+test, for the skill you are on. OPE cuts a piece out, you write it back, and it
+counts when the test passes. Explaining a piece works the same way: your answer
+goes into a file and your AI coder grades it on its next run.
+
+- **Eight stages, one fixed skill list**: Computer, Reader, Tweaker, Writer,
+  Builder, Debugger, Designer, Elite, five skills each. The list is fixed; the
+  practice comes from your own code.
+- **Nothing too hard reaches you.** The AI says how hard a piece is, OPE's own
+  rules check it, and the harder of the two is used.
+- **A practice bank** of 48 tasks, each with its own test, for the days your
+  project has nothing at your skill.
+- **No jumping.** Every stage opens with a door test: pass it and the whole stage
+  counts.
+- **From Stage 4 up your AI coder is switched off** and you write the code.
+  Nothing can stop you pasting from a chatbot in the browser, so that part is on
+  your honour.
+- **Just do it for me** is always there. It puts the code back, records the skip,
+  and the skill comes back until you pass it for real.
+
+Your progress is kept on this computer only, in `~/.config/ope/learn.json`.
+Tests run on your machine and grading uses the AI coder you already have, so
+learning costs nothing. The practice tests need Node on a Mac; the Windows app
+brings its own.
+
 ## OPE Chat
 
 Ask what a file or a few selected lines do, in plain words. OPE Chat **explains
