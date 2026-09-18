@@ -284,3 +284,15 @@ html.win32 .top,html.linux .top{padding:0 146px 0 12px!important}
 .miles li.done{background:var(--green)}
 .miles li.skip{background:#E5A94B}
 .miles li.now{background:#F08A3C}
+/* the steps, the code to read, and the editor inside the card */
+.lsteps{margin:0 0 14px;padding-left:22px;color:var(--ink)}
+.lsteps li{margin:0 0 8px;line-height:1.55;padding-left:4px}
+.lsteps li::marker{color:var(--green)}
+.card2 pre.lcode{color:var(--ink);max-height:360px}
+.led{margin:4px 0 0}
+.ltabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 6px}
+.ltabs button{height:26px;padding:0 10px;border:1px solid var(--edge-dim);border-radius:5px;background:#000;color:var(--sub);cursor:pointer;font:12px var(--mono)}
+.ltabs button.on{border-color:#F08A3C;color:var(--ink)}
+.led textarea{width:100%;min-height:260px;margin:0;border:1px solid var(--edge);border-radius:6px;background:#000;color:var(--ink);
+  padding:12px;font:13px/1.55 var(--mono);resize:vertical;tab-size:2;white-space:pre;overflow:auto}
+.led textarea:focus{outline:0;border-color:var(--green)}

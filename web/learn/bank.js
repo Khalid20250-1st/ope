@@ -27,7 +27,7 @@ window.OPEBank = [
  solve: function(c){ var o = {}; o['path.txt'] = c.here + '\n'; return o; }},
 
 {id: 'terminal', skill: 'terminal', kind: 'check', title: 'Run a command',
- ask: 'Open a terminal in this practice folder (in Finder: right click the folder, New Terminal at Folder). Type  ls > list.txt  and press Return. On Windows type  dir > list.txt  instead. It lists the folder and saves the list into list.txt.',
+ ask: 'Open a terminal in this practice folder, then type  ls > list.txt  and press Return (on Windows,  dir > list.txt  and Enter). It lists the folder and saves the list into list.txt. The steps below say exactly how.',
  test: "check('list.txt lists this folder', () => {\n  const f = path.join(here, 'list.txt');\n  assert.ok(fs.existsSync(f), 'there is no list.txt yet');\n  assert.ok(/task\\.md/.test(fs.readFileSync(f, 'utf8')), 'list.txt does not list task.md, so it is not the list of this folder');\n});",
  solve: {'list.txt': 'list.txt\ntask.md\ntest.cjs\n'}},
 

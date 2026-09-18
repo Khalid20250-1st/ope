@@ -9,6 +9,7 @@ global.window = {};
 eval(fs.readFileSync(path.join(web, 'skills.js'), 'utf8'));
 eval(fs.readFileSync(path.join(web, 'bank.js'), 'utf8'));
 for (const f of fs.readdirSync(web).filter(f => /^bank-.+\.js$/.test(f)).sort()) eval(fs.readFileSync(path.join(web, f), 'utf8'));
+for (const f of fs.readdirSync(web).filter(f => /^steps-.+\.js$/.test(f)).sort()) eval(fs.readFileSync(path.join(web, f), 'utf8'));
 const B = window.OPEBank, all = window.OPESkills.all(), only = process.argv[2] || '';
 let bad = 0;
 const ids = new Set();
@@ -17,6 +18,14 @@ for (const t of B) if (t.skill && !all.find(s => s.id === t.skill)) { console.lo
 if (!only) {
   for (const s of all) if (!B.find(t => t.skill === s.id)) { console.log('NO TASK FOR', s.id); bad++; }
   for (let d = 0; d < window.OPESkills.length; d++) if (!B.find(t => t.door === d)) { console.log('NO DOOR', d); bad++; }
+}
+/* every task says exactly what to do; Part 0 once for a Mac and once for Windows */
+const S = window.OPESteps || {};
+for (const t of B) {
+  if (only && !t.id.includes(only)) continue;
+  const st = S[t.id], part = t.door != null ? t.door : (all.find(x => x.id === t.skill) || {}).stage;
+  const lists = st ? (part === 0 ? [st.mac, st.win] : [st.all || st.mac]) : [];
+  if (!st || lists.some(l => !Array.isArray(l) || l.length < 3)) { console.log('NO STEPS' + (part === 0 ? ' (needs mac and win)' : ''), t.id); bad++; }
 }
 for (const t of B) {
   if (!t.title || !t.ask || !t.kind) { console.log('MISSING title/ask/kind', t.id); bad++; }

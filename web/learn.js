@@ -441,7 +441,11 @@
       : Promise.resolve();
     return ready.then(function(){ return explain ? verdict(p) : null; }).then(function(v){
       box = $('lWork'); if(!box) return;
+      var steps = stepsFor(p);
       var html = '<p class="k">' + esc(i.from.toUpperCase()) + '</p><h2>' + esc(i.title) + '</h2><p class="lask">' + esc(i.ask) + '</p>'+
+        (steps.length ? '<p class="k">STEP BY STEP</p><ol class="lsteps">' + steps.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '')+
+        (explain && i.code ? '<pre class="lcode">' + esc(i.code) + '</pre>' : '')+
+        (editable(p).length ? '<div class="led" id="lEdit"></div>' : '')+
         (i.stages ? '<p class="small">How hard: ' + esc(i.stages) + '. OPE uses the harder one.</p>' : '')+
         (i.folder ? '<p class="small">Your folder: <b class="path">' + esc(i.full) + '</b></p>' : '')+
         '<div class="acts3"><button class="btn" type="button" id="lOpen">' + (i.folder ? 'Open the folder' : 'Open ' + esc(i.where.split('/').pop())) + '</button>';
@@ -460,12 +464,13 @@
       html += (v && v.state === 'pass' ? '' : '<button class="btn quiet" type="button" id="lSkip">Just do it for me</button>') + '</div>'+
         (L.last && L.last.id === p.id ? '<pre class="out ' + (L.last.code === 0 ? 'ok' : 'no') + '">' + esc(L.last.text) + '</pre>' : '');
       box.innerHTML = html;
+      drawEditor(p);
       var q = function(id){ return document.getElementById(id); };
       if(q('lOpen')) q('lOpen').onclick = function(){
         if(i.folder) return call('courseOpen', {path: i.folder}).catch(function(e){ OPEBridge.report(e.message); });
         window.OPE.openFile(i.where, i.line);
       };
-      if(q('lRun')) q('lRun').onclick = function(){ L.note = null; check(p); };
+      if(q('lRun')) q('lRun').onclick = function(){ L.note = null; saveEd(p).then(function(){ check(p); }); };
       if(q('lSend')) q('lSend').onclick = function(){
         var t = q('lAns').value.trim(); if(t.length < 10) return q('lAns').focus();
         sendAnswer(p, i, t).then(render);
@@ -477,6 +482,74 @@
         L.last = null;
         skip(p).then(next);
       };
+    });
+  }
+
+  /* ------------------------------------------------------------ steps and the editor */
+  /* which computer this is, so the steps say Finder or File Explorer, Return or Enter */
+  function plat(){
+    var d = window.opeDesktop;
+    if(d && d.platform === 'win32') return 'win';
+    if(!OPEBridge.native && !d && /Win/i.test(navigator.platform || '')) return 'win';
+    return 'mac';
+  }
+  /* every task says exactly what to do, one small action per step */
+  function stepsFor(p){
+    if(p.source === 'bank'){
+      var st = (window.OPESteps || {})[p.id] || {};
+      return st[plat()] || st.all || st.mac || [];
+    }
+    var tag = p.tag, kind = tag.kind || 'write', mk = marks(tag.file, tag.id);
+    if(kind === 'read') return [
+      'Press Open ' + tag.file.split('/').pop() + '. OPE shows your code and puts the cursor on line ' + tag.start + '.',
+      'Read lines ' + tag.start + ' to ' + tag.end + ' slowly, one line at a time. For each line, say out loud what it does.',
+      'Come back here with the cap button on the left.',
+      'In the box below, write what those lines do and why they are there, in your own words.',
+      'Press Send to my AI coder, then tell your AI coder: grade my OPE answer.'];
+    return [
+      'Press Open ' + tag.file.split('/').pop() + '. OPE shows your code and puts the cursor on line ' + tag.start + '.',
+      'Find the two lines that say ' + mk.start.trim() + ' and ' + mk.end.trim() + '. Your code goes between them.',
+      'Replace the line that says Your turn with your code. Leave the two OPE lines where they are.',
+      'Press Save at the top right, or Command S (Control S on Windows).',
+      'Come back here with the cap button on the left and press Check my work.',
+      'If it says FAIL, read the line after FAIL: it says what is still wrong. Fix that and check again.'];
+  }
+  /* the files a task has you work in, from Part 1 on. Part 0 is done by hand in
+     the folder, because doing it by hand is the lesson */
+  function editable(p){
+    if(p.source !== 'bank') return [];
+    var t = BANK.filter(function(x){ return x.id === p.id; })[0];
+    var part = p.door != null ? p.door : (skillOf(t.skill) || {}).stage;
+    if(!part || t.kind !== 'check' || typeof t.solve === 'function') return [];
+    var out = Object.keys(t.files || {}).concat(Object.keys((t.solve && t.solve.files) || t.solve || {}));
+    return out.filter(function(f, i){ return f !== 'task.md' && out.indexOf(f) === i; });
+  }
+  function drawEditor(p){
+    var files = editable(p), box = $('lEdit');
+    if(!files.length || !box) return;
+    if(files.indexOf(L.edFile) < 0) L.edFile = files[0];
+    var f = L.edFile;
+    box.innerHTML = '<div class="ltabs" role="tablist">' + files.map(function(x){
+        return '<button type="button" role="tab" aria-selected="' + (x === f) + '" class="' + (x === f ? 'on' : '') + '" data-f="' + esc(x) + '">' + esc(x) + '</button>';
+      }).join('') + '</div>'+
+      '<textarea id="lEd" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" aria-label="' + esc(f) + '"></textarea>'+
+      '<div class="acts3"><button class="btn" type="button" id="lSave">Save</button><span class="small" id="lSaved"></span></div>';
+    var ed = $('lEd');
+    readText(p.id + '/' + f, C).then(function(t){ ed.value = t || ''; ed.dataset.was = ed.value; });
+    ed.onkeydown = function(e){
+      if(e.key === 'Tab'){ e.preventDefault(); var a = ed.selectionStart; ed.setRangeText('  ', a, ed.selectionEnd, 'end'); }
+      if((e.metaKey || e.ctrlKey) && e.key === 's'){ e.preventDefault(); saveEd(p); }
+    };
+    $('lSave').onclick = function(){ saveEd(p); };
+    Array.prototype.forEach.call(box.querySelectorAll('[data-f]'), function(b){
+      b.onclick = function(){ saveEd(p).then(function(){ L.edFile = b.getAttribute('data-f'); drawEditor(p); }); };
+    });
+  }
+  function saveEd(p){
+    var ed = $('lEd');
+    if(!ed || ed.value === ed.dataset.was) return Promise.resolve();
+    return write(p.id + '/' + L.edFile, ed.value, C).then(function(){
+      ed.dataset.was = ed.value; var s = $('lSaved'); if(s) s.textContent = 'Saved ' + L.edFile;
     });
   }
 
