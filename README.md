@@ -74,6 +74,12 @@ as `## 1.13 Reviews` with `Building` under it, then its task list. Pick it and t
 tasks show where the code goes until you open a file, and a project being built
 with no task list says so in amber, so a skipped plan is seen at once.
 
+Every project starts with one question: **description or planning?** Pick
+description and you write it. Pick planning and the AI thinks it through with you,
+a few sharp ideas and questions at a time, until you say done; then it writes the
+description from the talk (or you do) and makes the tasks. While you are still
+talking, the project shows in OPE as **planning**, with no code expected yet.
+
 The numbers also come out of the project's own history. Every save the method makes is
 written as `1.2: what it does`, so a version appears in OPE on its own, including
 one another chat started while you were looking somewhere else. Nothing is kept by

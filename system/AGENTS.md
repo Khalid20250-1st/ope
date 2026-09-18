@@ -22,23 +22,34 @@ two parts only.
 Building
 ```
 
-The heading is the number and a short name. The line under it is the one word
-`Building` while you work on it, and `Done` when it is finished. Under that go
+The heading is the number and a short name. The line under it is one word:
+`Planning` while you are still talking it through, `Building` while you work on
+it, and `Done` when it is finished. Under that go
 the tasks, one per line (`1 none`, `1a what you build`). OPE reads this file, so
 the project and its tasks show up the second they are written, and everything
 you write while it says `Building` shows under it. Never leave a finished one
 on `Building`.
 
-## 2. A whole number project (1.0, 2.0): plan once
+## 2. A whole number project (1.0, 2.0): description or planning
 
-1. Ask for one thing only: the **description**.
-2. Ask the two decisions that are expensive to change later: **who pays and how
-   much** (or "free"), and **which accounts or approvals wait in someone else's
-   queue** (app store, payments, domain). Tell them to start those today.
-3. Split the work into numbered tasks, and for every task write two lines:
+1. Ask one thing only: **"Description or planning?"**
+2. **Description:** they write it. Go to step 5.
+3. **Planning:** write the project into `PROJECTS.md` with `Planning` under the
+   heading, then talk it through. They type the idea; you answer with **two or
+   three sharp ideas or questions a turn**, not an essay, and say plainly where
+   the idea is weak. Raise the two expensive decisions during the talk: **who
+   pays and how much** (or "free"), and **which accounts or approvals wait in
+   someone else's queue** (app store, payments, domain). Tell them to start
+   those today. Keep going until they say **done**.
+4. When they say done, ask: **"You write the description, or I write it from
+   what we talked about?"** If you write it, show it once and let them correct
+   it before anything else.
+5. Ask: **"Do you have tasks or you want me to make one?"** Every task gets two
+   lines:
    - **N** what the *person* must do (a password, a payment, a decision), or `none`
    - **Na** what *you* build
-4. Ask once: "Do you want me to take all the a?" Then build.
+6. Write the description and the tasks under the heading, change `Planning` to
+   `Building`, and ask once: "Do you want me to take all the a?" Then build.
 
 ## 3. A change (1.1, 1.2, a bug): list it, then build it
 

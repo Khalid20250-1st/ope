@@ -202,9 +202,9 @@
       (both[0] || []).forEach(function(n){ byName[n.name] = n; });
       (both[1] || []).forEach(function(f){
         var n = byName[f.name];
-        if(n){ n.building = f.building; n.tasks = f.tasks; if(f.summary) n.named = f.summary; }
+        if(n){ n.building = f.building; n.planning = f.planning; n.tasks = f.tasks; if(f.summary) n.named = f.summary; }
         else byName[f.name] = {name: f.name, major: f.major, minor: f.minor, commits: [],
-                               summary: f.summary, named: f.summary, building: f.building, tasks: f.tasks};
+                               summary: f.summary, named: f.summary, building: f.building, planning: f.planning, tasks: f.tasks};
       });
       S.numbers = Object.keys(byName).map(function(k){ return byName[k]; })
         .sort(function(a, b){ return a.major - b.major || a.minor - b.minor; });
@@ -214,7 +214,7 @@
         var groups = {};
         S.numbers.forEach(function(n){
           (groups[n.major] = groups[n.major] || []).push({name: n.name, summary: n.named || n.summary,
-            commits: n.commits, building: n.building, tasks: n.tasks});
+            commits: n.commits, building: n.building, planning: n.planning, tasks: n.tasks});
         });
         S.projects = Object.keys(groups).map(Number).sort(function(a, b){ return a - b; }).map(function(m){
           return {id: 'num:' + m, title: 'Project ' + m + '.0', versions: groups[m]};
@@ -282,9 +282,9 @@
     (S.numbers || []).forEach(function(n){
       if(n.major !== major) return;
       var have = versions.filter(function(v){ return v.name === n.name; })[0];
-      if(have){ if(!have.commits && n.commits.length) have.commits = n.commits; have.building = n.building; have.tasks = n.tasks; return; }
+      if(have){ if(!have.commits && n.commits.length) have.commits = n.commits; have.building = n.building; have.planning = n.planning; have.tasks = n.tasks; return; }
       versions.push({name: n.name, summary: n.named || n.summary, commits: n.commits, lib: true, fromLog: true,
-                     building: n.building, tasks: n.tasks});
+                     building: n.building, planning: n.planning, tasks: n.tasks});
     });
     versions.sort(function(a, b){ return numCmp(a.name, b.name); });
     return {id: 'lib:' + top.number, title: top.number + ' ' + top.name, versions: versions};
@@ -418,13 +418,15 @@
     var same = function(a, b){ return a && b && (a.bare || b.bare ? !!a.bare === !!b.bare : (a.lib || !a.commit) ? a.name === b.name : a.commit === b.commit); };
     $('versionList').innerHTML = list.map(function(v, i){
       return '<button class="row ver'+(same(S.version, v) ? ' sel' : '')+(v.live ? ' live' : '')+(v.lib && !v.commits ? ' faint' : '')+'" data-v="'+i+'" type="button">'+
-        '<b>'+esc(v.name)+(v.bare ? '<i class="now"></i>' : v.live ? '<i class="now">Now</i>' : v.building ? '<i class="bld">building</i>' : '')+'</b>'+
+        '<b>'+esc(v.name)+(v.bare ? '<i class="now"></i>' : v.live ? '<i class="now">Now</i>' : v.building ? '<i class="bld">building</i>' : v.planning ? '<i class="bld">planning</i>' : '')+'</b>'+
         (v.summary ? '<span>'+esc(v.summary)+'</span>' : '')+
         (v.now ? '<span class="nowsay">'+esc(v.now)+'</span>' : '')+
         /* a project that is being built with no task list is the mistake this
            is here to catch, so it says so on the row */
         (v.building ? '<span class="'+(v.tasks && v.tasks.length ? '' : 'notasks')+'">'+
-          (v.tasks && v.tasks.length ? taskCount(v.tasks) : 'No task list yet')+'</span>' : '')+'</button>';
+          (v.tasks && v.tasks.length ? taskCount(v.tasks) : 'No task list yet')+'</span>' : '')+
+        /* planning is talk, not code: no task list is expected yet */
+        (v.planning ? '<span>Planning, no code yet</span>' : '')+'</button>';
     }).join('');
     Array.prototype.forEach.call($('versionList').querySelectorAll('[data-v]'), function(b){
       b.onclick = function(){

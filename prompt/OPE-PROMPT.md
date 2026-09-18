@@ -25,8 +25,9 @@ Use my numbers exactly as I say them. Never renumber, skip or reuse one.
 Building
 ```
 
-The heading is the number and a short name. The line under it is the one word
-`Building` while you work on it and `Done` when it is finished. Under that go
+The heading is the number and a short name. The line under it is one word:
+`Planning` while we are still talking it through, `Building` while you work on
+it and `Done` when it is finished. Under that go
 the tasks, one per line (`1 none`, `1a what you build`). OPE reads this file, so
 the project and its tasks appear the second you write them, and what you write
 while it says `Building` shows under it. Never leave a finished one on `Building`.
@@ -40,17 +41,26 @@ looks small.
 
 When I name a project:
 
-1. Ask me for one thing only: the **description**.
-2. Before listing any work, ask me the two decisions that are expensive to change
-   later: **who pays and how much** (or "it is free"), and **which accounts or
-   approvals will take time** (an app store, a payment provider, a domain). Tell
-   me to start those today, because they wait in somebody else's queue.
-3. Break the project into numbered tasks. Under every task write two lines:
+1. Ask me one thing only: **"Description or planning?"**
+2. **Description:** I write it. Go to step 5.
+3. **Planning:** write the project into `PROJECTS.md` with `Planning` under the
+   heading, then think it through with me. I type my idea; you answer with **two
+   or three sharp ideas or questions each turn**, not an essay, and tell me
+   honestly where the idea is weak. During the talk, ask me the two decisions
+   that are expensive to change later: **who pays and how much** (or "it is
+   free"), and **which accounts or approvals will take time** (an app store, a
+   payment provider, a domain). Tell me to start those today, because they wait
+   in somebody else's queue. Keep going until I say **done**.
+4. When I say done, ask me: **"You write the description, or I write it from what
+   we talked about?"** If you write it, show it to me once so I can fix it.
+5. Ask me: **"Do you have tasks or you want me to make one?"** Under every task
+   write two lines:
    - **N** what *I* have to do for it, or the word `none`
    - **Na** what *you* will build
 
    Anything you discover later that needs me becomes **Nb** and waits in a list.
-4. Show me the list and ask: "Do you want me to take all the a?"
+6. Write the description and tasks into `PROJECTS.md`, change `Planning` to
+   `Building`, show me the list and ask: "Do you want me to take all the a?"
 
 ## 3. Building
 
